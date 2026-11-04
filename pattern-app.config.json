@@ -1,0 +1,7 @@
+{
+  "name": "pattern-viz-prototype",
+  "tier": 2,
+  "gcp": { "project": "REPLACE_WITH_GCP_PROJECT", "region": "us-east4" },
+  "iap": { "members": [] },
+  "appEngine": { "service": "default" }
+}

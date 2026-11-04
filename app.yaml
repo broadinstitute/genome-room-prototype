@@ -1,0 +1,21 @@
+# Copied from pattern-deploy templates/tier2/app.yaml. The 'service' value
+# below must match pattern-app.config.json appEngine.service — edit it once
+# when you scaffold a new app, then leave it alone.
+service: default
+runtime: nodejs22
+env: standard
+
+build_env_variables:
+  # Skip the GAE buildpack's auto npm-build because our private GitHub deps
+  # (pattern-app-kit, viz_sandbox, etc.) require ssh-agent forwarding, which the
+  # buildpack doesn't support. We build locally and ship dist/.
+  GOOGLE_NODE_RUN_SCRIPTS: ""
+
+handlers:
+  - url: /(.*\..+)$
+    static_files: dist/\1
+    upload: dist/(.*\..+)$
+
+  - url: /.*
+    static_files: dist/index.html
+    upload: dist/index.html

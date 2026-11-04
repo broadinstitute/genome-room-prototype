@@ -1,0 +1,52 @@
+name: Deploy static content to Pages
+
+on:
+  push:
+    branches: ['main']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure access token for private dep installs
+        run: git config --global url."https://${{ secrets.ACTIONS_CLASSIC }}@github.com/".insteadOf ssh://git@github.com/
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - name: Install dependencies
+        # The Linux rollup native binary is pinned in package.json optionalDependencies
+        # (so it lands in the lockfile and installs on this ubuntu runner); a
+        # macOS-generated lockfile otherwise omits it and the build fails with
+        # "Cannot find module @rollup/rollup-linux-x64-gnu" (npm/cli#4828).
+        # npm install (not ci) for extra resilience restoring platform optionals.
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

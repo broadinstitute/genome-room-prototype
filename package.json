@@ -1,0 +1,57 @@
+{
+  "name": "genome-room-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "// prebuild": "viz_sandbox is a fast-moving prototype we always track at main; npm ci installs the lockfile-pinned commit, so refresh to main HEAD before every build (CI + local) to keep the pin inert.",
+    "prebuild": "npm install --no-save --no-package-lock github:broadinstitute/viz_sandbox#main",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@deck.gl/core": "9.1.1",
+    "@deck.gl/extensions": "9.1.1",
+    "@deck.gl/layers": "9.1.1",
+    "@deck.gl/mesh-layers": "9.1.1",
+    "d3-scale": "^4.0.2",
+    "d3-scale-chromatic": "^3.1.0",
+    "math.gl": "^4.1.0",
+    "pattern-app-kit": "github:broadinstitute/pattern-app-kit#v0.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "viz_sandbox": "github:broadinstitute/viz_sandbox#main"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.2",
+    "pattern-deploy": "github:broadinstitute/pattern-deploy#v0.1.6",
+    "vite": "^7.3.1"
+  },
+  "comment:optionalDependencies": "Pin the Linux rollup native binary (matching the locked rollup version) so CI on ubuntu installs it. A macOS-generated lockfile otherwise omits it and the build fails with 'Cannot find module @rollup/rollup-linux-x64-gnu' (npm/cli#4828). It's optional, so macOS/other platforms skip it cleanly.",
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.61.1"
+  },
+  "comment:overrides": "viz_sandbox is built against the deck.gl/luma 9.1.x line; caret ranges otherwise float a fresh install to 9.3.x, which breaks rendering with 'Invalid coordinateSystem: 0'. loaders.gl is pinned to 4.3.3 for the same reason (its 4.4.x packages drift apart and peer-conflict). Pin all three stacks so a downstream install can't drift.",
+  "overrides": {
+    "@deck.gl/core": "9.1.1",
+    "@deck.gl/layers": "9.1.1",
+    "@deck.gl/extensions": "9.1.1",
+    "@deck.gl/mesh-layers": "9.1.1",
+    "@luma.gl/constants": "9.1.2",
+    "@luma.gl/core": "9.1.2",
+    "@luma.gl/engine": "9.1.2",
+    "@luma.gl/shadertools": "9.1.2",
+    "@luma.gl/webgl": "9.1.2",
+    "@luma.gl/gltf": "9.1.2",
+    "@loaders.gl/core": "4.3.3",
+    "@loaders.gl/draco": "4.3.3",
+    "@loaders.gl/gltf": "4.3.3",
+    "@loaders.gl/images": "4.3.3",
+    "@loaders.gl/loader-utils": "4.3.3",
+    "@loaders.gl/obj": "4.3.3",
+    "@loaders.gl/schema": "4.3.3",
+    "@loaders.gl/schema-utils": "4.3.3",
+    "@loaders.gl/textures": "4.3.3",
+    "@loaders.gl/worker-utils": "4.3.3"
+  }
+}
