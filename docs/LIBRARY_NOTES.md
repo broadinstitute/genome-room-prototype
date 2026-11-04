@@ -1,107 +1,108 @@
-# Plane placement — findings for a viz_sandbox library change
+# Rendering viz_sandbox plots onto non-X-Y surfaces — findings for a library change
 
-This prototype puts whole viz_sandbox visualizers onto planes other than world X-Y, as a
-consumer-side workaround ([src/app/plane_placement.js](../src/app/plane_placement.js)). This file
-records what the workaround needed. Each item is a candidate requirement for a library feature.
+viz_sandbox lays every plot out in the world X-Y plane at z = 0. This prototype tried two
+consumer-side ways of putting plots onto other surfaces. Each finding below is a candidate
+requirement for a library feature. Verified in the running app, 2026-11-04, against viz_sandbox
+`main` and deck.gl 9.1.1.
 
-Test scene: three `BoundedHeatmapVisualizer` walls, animated between one continuous horizontal strip
-on the X-Y plane and an upright room around a floor. Each wall's placement is interpolated rigidly
-(origin lerp, orientation slerp) every frame. Verified in the running app, 2026-11-04, against
-viz_sandbox `main` and deck.gl 9.1.1.
+| Approach | Where | Surfaces it can make |
+|---|---|---|
+| **Plane placement** — one rigid `modelMatrix` per visualizer | commit `93fe382` (`src/app/plane_placement.js`, three wall visualizers) | Flat planes only |
+| **Surface projection** — a function f(s, t) applied per vertex in the shader | current code (`src/app/ribbon.js`, one strip visualizer) | Any surface f can describe: flat strip, room, rounded room, half-cylinder |
 
-## What worked without library changes
+The surface projection is the more general one; a plane placement is its affine special case. It is
+the recommended shape for the library feature.
+
+## Surface projection (current)
+
+The genome strip is one `BoundedHeatmapVisualizer` in ribbon coordinates (x = s along the strip,
+y = t up it). A deck.gl `LayerExtension` (`RibbonExtension`) maps every vertex through
+f(s, t) in the `DECKGL_FILTER_GL_POSITION` hook, after viz_sandbox's own transforms. The ribbon's
+state (centerline segments, stand-up angle) is a uniform block, updated per frame through a layer
+prop, without recompiling the shader.
+
+### What worked
 
 | Mechanism | Result |
 |---|---|
-| `setLayerProps({ modelMatrix })` on every LayerDescription | Every built-in heatmap layer (cells, labels, titles, hit layers, scrollbar/hit area) and the custom layers picked up the placement. The audit found no misses. |
-| Bounded clipping on a placed plot | Correct. The clip test uses pre-placement coordinates. |
-| Object picking (tooltips, `dataHoverFunction`) on a placed plot | Correct in both fold states. Picking is GPU color-based. |
-| Camera fit with `expandTargetViewStateToWorldPoints` | Correct, given placed 3D corners. |
-| Re-placing every layer of 3 walls every frame | 60 fps over the transition animation (worst frame 18 ms). |
+| Hook coverage | Every layer the heatmap uses reaches the hook with `geometry.position` filled: the forked `BoundedSolidPolygonLayer` (cells), `TextLayer` (labels, titles — glyph corners map individually, so text bends with the surface), deck `SolidPolygonLayer`, and `BoundedScatterplotLayer` (with the workaround below). |
+| Bounded clipping | Correct. The clip test runs on pre-projection coordinates. |
+| Picking, tooltips, `dataHoverFunction` | Correct on curved surfaces. |
+| Scatter alignment | `?probe=scatter`: scatter dots sit centered in the polygon squares marking the same points, including on a curved corner. No `modelMatrix` is involved, so the matrix-order bug below does not arise. |
+| Backface cutaway | Done in the same extension: a varying carries the surface normal's facing, and `DECKGL_FILTER_COLOR` fades back-facing fragments. Works per fragment on curved surfaces. |
+| Morphing | Assembly (flat strip → standing → bent) and shape changes (room ↔ rounded ↔ arc) at 60 fps (worst frame 18 ms), re-uploading uniforms every frame. |
 
-## What needed workarounds
+### What needed workarounds
 
-### 1. No placement concept on the visualizer
-Placement had to be pushed into each LayerDescription. A custom generator that doesn't spread its
-passthrough props would silently stay on the X-Y plane. That is why `auditPlacement` exists.
+**1. `BoundedScatterplotLayer` overwrites extension shader injections (bug).** Its `getShaders()`
+merges its own injections with an object spread (`{...shaders.inject, ...BOUNDS_INJECT}`). That
+replaces any extension injection on the same hook (`vs:#decl`, `vs:DECKGL_FILTER_GL_POSITION`,
+`fs:#decl`, `fs:#main-start`). With the ribbon extension attached, the varying declaration is
+dropped and the fragment shader fails to link (`Error during linking: Fragment shader is not
+compiled`). Workaround: `ExtensionSafeBoundedScatterplotLayer` re-appends each extension's
+injections. **Wanted:** concatenate per hook instead of spreading.
 
-**Wanted:** a per-visualizer placement matrix on `appState`, applied as the outermost transform to
-every layer, composed with any `modelMatrix` a layer already carries. Example:
-`viz.setPlacement(matrix)`.
+**2. The projection has to exist twice.** GLSL for rendering; JS for everything on the CPU — floor
+arc endpoints, camera framing, cursor → (s, t). Kept in step by hand (`ribbon_map` /
+`ribbonPoint`). **Wanted:** a projection object that carries both, so the library can use the JS
+half for extents and cursor inversion.
 
-### 2. Quad offsets ignore `modelMatrix` — a deck.gl behavior
-deck.gl applies `modelMatrix` to anchor positions only. Text glyphs (IconLayer under TextLayer) and
-scatter discs add their corner offset in common space after the model transform
-(`project32`'s `project_position_to_clipspace`). Placed text stayed parallel to the floor while its
-anchor moved onto the wall. Setting `billboard: true` instead turns it to face the camera, which
-doesn't help either.
+**3. Cursor coordinate is wrong on any projected plot.** deck's `plotRelativeCoordinate` intersects
+the pick ray with z = 0. Example on the half-cylinder: ribbon intersection (19.16, 1.00), deck
+(7.00, 8.96). The workaround intersects the ray with the surface cut into 0.25 m planar facets
+(`ribbonCoordinateAtPixel`). It agreed with the GPU-picked cell to within 0.003 m. **Wanted:** the
+manager computes plot coordinates through the projection's inverse (or a facet search like this
+one) for projected visualizers. Wheel zoom, plot drag and scrollbar reveal depend on it.
 
-**Workaround:** `PlaneOffsetExtension`, a `LayerExtension` that rotates the offset by `modelMatrix`
-through the `DECKGL_FILTER_SIZE` hook. It is limited to IconLayer and ScatterplotLayer, because
-path and line layers also call that hook with offsets that are already correct.
+**4. Large polygons need subdividing.** f acts on vertices, so a polygon spanning a bend renders as
+its chord. Heatmap cells are narrow enough; the strip backdrop had to be cut into 0.25 m quads.
+**Wanted:** a tessellation option on generated chrome (backdrops, hit areas, scrollbars) for
+projected visualizers.
 
-**Wanted:** the same idea, but using the placement's rotation only, as its own uniform. Using
-`modelMatrix` is wrong for bounded layers, whose composed matrix also carries pan/zoom scale.
+**5. Pixel-width lines and paths can't use this hook.** Their width is applied in clip space before
+`DECKGL_FILTER_GL_POSITION`, so remapping the center collapses the width. Not hit here — the
+heatmap uses none, and the floor isn't projected — but it bounds what the extension covers.
 
-### 3. BoundedScatterplotLayer composes in the opposite order (bug)
-`BoundedSolidPolygonLayer`, `BoundedLineLayer`, `BoundedPathLayer` and `BoundedBoxLayer` compute
-`modelMatrix · bounds · p`. `BoundedScatterplotLayer` (via `composeBoundsModelMatrix`) computes
-`bounds · modelMatrix · p`. Under any non-identity placement, its points get the plot offset added
-in world space after placement.
+## Plane placement (commit `93fe382`)
 
-**Reproduce:** `?probe=scatter`. The magenta scatter dots leave the white polygon squares that mark
-the same cell centers and land on the floor.
+Three wall visualizers, each placed by a rigid `modelMatrix` set on every LayerDescription via
+`setLayerProps`. All built-in heatmap layers accepted it. Findings:
 
-**Wanted:** make `BoundedScatterplotLayer` compose like the others.
+1. **No placement concept on the visualizer.** The matrix had to go onto each layer; a custom
+   generator that doesn't spread passthrough props stays on X-Y without error.
+2. **Quad offsets ignore `modelMatrix` (deck.gl behavior).** Text glyphs and scatter discs add their
+   corner offset after the model transform (`project32`'s `project_position_to_clipspace`), so
+   placed text stayed parallel to the floor. Needed an extension rotating the offset through
+   `DECKGL_FILTER_SIZE`. The surface projection does not have this problem: it maps the vertex
+   after the offset is added.
+3. **`BoundedScatterplotLayer` composes `bounds · modelMatrix`; every other bounded layer composes
+   `modelMatrix · bounds` (bug).** Under a placement its points left the plot.
+4. **`plotRelativeCoordinate` assumes z = 0** (as item 3 above). Flat-strip state: ray–plane
+   (12.00, 1.80) vs deck (12.00, 17.80).
+5. **Extents are pre-placement.** `getWorldExtents()` returns the X-Y rect.
 
-### 4. Plot-relative cursor coordinate assumes z = 0
-`VisualizerDeckManager.onHoverHandler` computes `plotRelativeCoordinate` as `info.coordinate` minus
-the X/Y offset. `info.coordinate` is the pick ray's intersection with world z = 0, not with the
-plot's plane. Measured on the back wall:
-
-| State | Ray–plane intersection | deck `plotRelativeCoordinate` |
-|---|---|---|
-| Flat | (12.00, 1.80) | (12.00, 17.80) — off by the 16 m the back wall sits from the origin |
-| Room | (10.08, 2.10) | (12.65, 11.53) |
-
-The ray–plane value matched the GPU-picked cell's region in both cases.
-Wheel-zoom focus, plot drag and scrollbar reveal all consume this value. The walls are not
-navigable in this prototype for that reason.
-
-**Wanted:** intersect the pick ray with the placed plane, then apply the inverse placement
-(`placedCoordinateAtPixel`).
-
-### 5. Extents are pre-placement
-`getHeatmapWorldExtents()` / `getWorldExtents()` return the X-Y rect, so a camera fit on them frames
-the wrong region.
-
-**Wanted:** placed extents (`placedCorners`), or a flag on the existing methods.
-
-## Related limits hit along the way (not placement)
+## Related limits hit along the way
 
 - **Orthographic-only view.** `VisualizerDeckManager.generateView()` hard-codes
-  `orthographic: true`. A room seen from outside therefore always shows one side wall edge-on or
-  from behind. Here, any wall facing away from the camera fades out (`updateWallFacing`). A
-  perspective view from inside the room (a visitor's eye) would need the view to be configurable,
-  and the fit/unproject helpers that build their own viewport from `this.view` would need to
-  follow it.
-- **Orbit target pinned to z = 0** (`constrainViewStateTarget`). Fine for a room standing on the
-  floor plane. It would matter for content centered above it.
-- **Cell gaps alias at small cell sizes.** At ~2 px per genome bin, the inter-cell gap lands on
-  whole pixel columns and rows in a beat pattern. Those pixels pick the plot hit area, not a cell
-  (correct behavior, but it looks like dead columns when probing picking by hand). Not
-  placement-related. A zero-gap option for dense heatmaps would remove it.
-- **Column axis title sits below the plot.** On a hinged wall, below the plot is past the hinge:
-  the title lands under the floor when folded. Worked around with
-  `setColumnLabelPosition("top")`. A per-axis title side would be cleaner.
+  `orthographic: true`, so a room seen from outside always shows part of the surface from behind
+  (handled by the cutaway). A visitor's-eye perspective view needs a configurable view, with the
+  fit/unproject helpers following it.
+- **Orbit target pinned to z = 0** (`constrainViewStateTarget`).
+- **Cell gaps alias at small cell sizes.** At ~2 px per bin, the inter-cell gap lands on whole pixel
+  columns in a beat pattern; those pixels pick the hit area. Not projection-related.
 
 ## Proposed API (sketch)
 
 ```js
-viz.setPlacement(matrix4)        // outermost transform for all layers; null = X-Y plane
-viz.getPlacement()
-viz.getPlacedWorldCorners()      // 4 world-space corners of the plot rect
-// deck manager: plotRelativeCoordinate becomes plane-aware for placed visualizers
-// bounded layers: a placement uniform separate from the bounds transform, used for both
-//   position (outermost) and quad-offset rotation
+// A projection maps plot coordinates (after bounds/pan/zoom) to world.
+const projection = {
+  glsl: "...",                 // defines vec3 project_surface(vec3 p, out vec3 normal)
+  uniforms: { ... },           // updatable per frame without recompiling
+  map(x, y, z) { ... },        // JS twin: world point + normal
+  invert(ray) { ... },         // optional; else the library facet-searches with map()
+};
+viz.setProjection(projection);  // applied to every layer of the visualizer; null = X-Y plane
+viz.setProjectionUniforms({ ... });
+viz.getProjectedExtents();      // sampled through map()
+// A rigid placement is the special case: map(p) = M · p.
 ```

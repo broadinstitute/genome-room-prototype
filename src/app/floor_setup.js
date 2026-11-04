@@ -6,7 +6,7 @@ export const FLOOR_ARCS_LAYER_ID = "floorArcsLayer";
 export const VISITOR_LAYER_ID = "visitorLayer";
 
 /**
- * The floor: surface, 1 m grid, arcs from the focused region, and the stand-in visitor.
+ * The floor: surface, arcs from the focused region, and the stand-in visitor.
  *
  * Unplaced — it IS the X-Y plane, so world coordinates are used directly. Plain deck.gl layers:
  * the floor is not navigable (the orbit camera does pan/zoom/rotate) so the bounded pipeline
@@ -26,7 +26,9 @@ export function makeFloorViz(containerId, deckManager, room, _appState) {
     viz.appState.addLayer(new LayerDescription(id, accessor, (rows) => generator(qid, rows), { enabled: true }));
   };
 
-  add("floorSurfaceLayer", () => [{ ring: [[0, 0], [W, 0], [W, D], [0, D]] }], (id, data) =>
+  // Outline follows the ribbon's centerline (closed straight across the open front), so the floor
+  // matches whatever shape the walls take.
+  add("floorSurfaceLayer", () => [{ ring: _appState.floorOutline }], (id, data) =>
     new SolidPolygonLayer({
       id,
       data,
@@ -35,22 +37,44 @@ export function makeFloorViz(containerId, deckManager, room, _appState) {
       opacity: _appState.floorOpacity(), // the floor exists only as the room forms
       pickable: false,
       parameters: { depthTest: false },
+      updateTriggers: { getPolygon: [_appState.floorOutline] },
     }),
   );
 
-  const grid = [];
-  for (let x = 1; x < W; x++) grid.push({ from: [x, 0, 0], to: [x, D, 0] });
-  for (let y = 1; y < D; y++) grid.push({ from: [0, y, 0], to: [W, y, 0] });
-  add("floorGridLayer", () => grid, (id, data) =>
+  /**
+   * Registration brackets at the 8 corners of the PHYSICAL room box (width × depth × height), after
+   * hic_contact_map's bounding-corner brackets: three short arms per corner pointing inward along
+   * each axis, neutral grey, never depth-tested. Fixed to the room, not to the projected surface, so
+   * they stay put while the surface changes shape and show where a projection departs from the
+   * real walls (the arc overruns the side walls). Fade in with the floor: on the flat strip there
+   * is no room yet.
+   */
+  const H = room.height;
+  const arm = _appState.layout.cornerArm;
+  const cornerSegments = [];
+  for (const cx of [0, 1]) {
+    for (const cy of [0, 1]) {
+      for (const cz of [0, 1]) {
+        const at = [cx * W, cy * D, cz * H];
+        const inward = [cx ? -1 : 1, cy ? -1 : 1, cz ? -1 : 1];
+        for (let k = 0; k < 3; k++) {
+          const to = at.slice();
+          to[k] += inward[k] * arm;
+          cornerSegments.push({ from: at, to });
+        }
+      }
+    }
+  }
+  add("roomCornerLayer", () => cornerSegments, (id, data) =>
     new LineLayer({
       id,
       data,
       getSourcePosition: (d) => d.from,
       getTargetPosition: (d) => d.to,
-      getColor: _appState.colors.grid,
-      opacity: _appState.floorOpacity(),
-      getWidth: 1,
+      getColor: _appState.colors.cornerMarks,
+      getWidth: 1.5,
       widthUnits: "pixels",
+      opacity: _appState.floorOpacity(),
       pickable: false,
       parameters: { depthTest: false },
     }),
