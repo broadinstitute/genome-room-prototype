@@ -24,6 +24,12 @@ npm run dev
 URL options:
 - `?view=room` — start assembled instead of flat.
 - `?shape=room|rounded|arc` — starting shape.
+- `?arcs=floor|wall|drop` — how a region's links are drawn: arcs across the floor (default), arcs
+  on the wall hanging below the genome, or floor arcs plus a line down the wall from each linked
+  region to its arc's end.
+- `?tracks=none` — hide the trait rows. Traits still drive the links and their colours.
+- `?band=<metres>|full` — chromosome band height when the trait rows are hidden. Default: one trait
+  row's height, so hiding the tracks leaves the band unchanged.
 - `?probe=scatter` — diagnostic. Draws the same points as scatter dots and as polygon squares; they
   should coincide on every surface.
 
@@ -33,8 +39,10 @@ URL options:
   stands up about its bottom edge, then bends into the current shape. Bending never stretches the
   strip, so genome distances are preserved and nothing separates.
 - **Shape** buttons morph between room, rounded room and half-cylinder.
-- Hover a cell to stand a visitor in front of that region. Arcs fan out across the floor to every
-  other region sharing a trait with it.
+- Hover a cell to stand a visitor in front of that region. Links fan out to every other region
+  sharing a trait with it.
+- **Arcs** buttons switch the link style live. The **Trait tracks** checkbox reloads with
+  `?tracks=none` toggled.
 - Drag to orbit, scroll to zoom (deck.gl orbit camera).
 - The bottom-left panel compares the cursor position computed against the surface with the value
   deck reports. The two disagree for any projected plot.
@@ -44,9 +52,14 @@ URL options:
 - `src/app/ribbon.js` — the surface: centerline profiles, the map f(s, t) in JS and GLSL, the
   deck.gl extension, cursor → (s, t) by ray–facet intersection.
 - `src/app/strip_setup.js` — the genome strip visualizer.
-- `src/app/floor_setup.js` — floor, arcs, stand-in visitor.
+- `src/app/floor_setup.js` — floor, floor arcs, stand-in visitor, corner registration brackets at
+  the physical room's 8 corners.
 - `src/app/genome.js` — GRCh38 lengths, binning, placeholder trait values.
-- `src/app/GenomeRoomApp.js` — app state, assembly and shape animation, camera.
+- `src/app/GenomeRoomApp.js` — app state, parameters, assembly and shape animation, camera, wall
+  arc / drop line geometry.
+- `src/app/controls.js` — plain-DOM control and readout panels.
+
+[docs/HANDOFF.md](docs/HANDOFF.md) describes the prototype as a whole for picking the work up.
 
 Infrastructure (deck.gl/luma/loaders pins, viz_sandbox tracking `main`, data-free deploy) follows
 `pattern-viz-prototype-template` with the gallery's newer kit version. Both template deploy paths
