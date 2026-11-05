@@ -39,7 +39,8 @@ On `main` (see `git log`). No git remote; nothing pushed or deployed.
 
 **UI** (`src/app/controls.js`): a transparent exhibit header over the full-window canvas — title
 "Polygenomic Exploration Room" (34 px), subtitle naming the target (Ars Electronica's Deep Space
-projection system, installed at the Boston Museum of Science), the description (projection on
+projection system — linked to ars.electronica.art/solutions/en/deepspace/ — installed at the Boston
+Museum of Science), the description (projection on
 walls and floor, lidar tracking, linger to open traits, shared traits connect people), then one
 row per control group (label column, controls to its right), as segmented toggles styled from the
 visualization palette (`colors.wallSurface` borders, `colors.band[1]` for the active segment):
@@ -59,7 +60,7 @@ full width below the whole header (the flat strip). Everything else is in a coll
 panel bottom right. Both register refreshers on `_appState.onStateChange`.
 
 **Defaults**: assembled (`?view=flat` for the strip), rounded, bubbles mode (`?mode=tracks` for the
-trait-row view), arcs none, 12 m walls, trait density Medium (`DEFAULT_TIERS` = few, dozens),
+trait-row view), arcs none, bubble links as faint arcs (`?links=ticks` for ticks only), 12 m walls, trait density Medium (`DEFAULT_TIERS` = few, dozens),
 simulation on (`?sim=0` off; off by default when starting as the flat screen) with 10 visitors at
 2.5×. The URL records only deviations (`recordSimParam`, `recordTiersParam`).
 
@@ -164,6 +165,12 @@ Working:
   the floor point on the line of sight through the pixel that must become the centre
   (`OrbitViewport.unproject` ignores `targetZ`, so the unprojected point is slid along the view
   direction to z = 0). Exact, so `setAssembly` (slider) refits per position without zoom jumps.
+- **Rotation pivot** (`keepPivot`): that target is the orbit pivot, and it sits ~10 m behind the
+  room, so mouse rotation swung the room around its back corner. deck uses the view state returned
+  from `onViewStateChange` (wrapped after the deck manager's handler); on any rotation change the
+  target is re-solved so the room's 3D bounding-box centre stays on its pixel. Pans and zooms pass
+  through. Not view `padding`: deck applies padding as a projection skew (`matrix[8]`/`[9]`),
+  which shears an orthographic view.
 
 ### Floor and links
 
@@ -301,9 +308,9 @@ wander biased toward hint ticks; toggle + count + speed.
   exactly in the ticks' directions. Ticks fade in over the second half of a bubble's
   entrance. `bubblePad` is 0.12 m to make room for them.
 - **Link styles** (`display.bubbleLinks`, `?links=ticks|arcs`, the Links buttons, live):
-  - `ticks` (default): ticks, plus arcs only between open clusters, growing as the second
+  - `ticks`: ticks, plus arcs only between open clusters, growing as the second
     bubble appears.
-  - `arcs`: also a faint arc (`faintArcAlpha` 26/255, `faintArcWidth` 0.012 m) from every tick to
+  - `arcs` (default): also a faint arc (`faintArcAlpha` 26/255, `faintArcWidth` 0.012 m) from every tick to
     its region on the band, arriving straight in. When that region's cluster opens, the arc
     shifts: its far end slides from the band to the new bubble's tick and it brightens to a full
     shared link, by the new bubble's entrance progress (and back when either closes). Faint arcs

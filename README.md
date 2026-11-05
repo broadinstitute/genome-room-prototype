@@ -40,7 +40,7 @@ screen). The URL records a setting only when it differs from these.
   `?head=<metres>` (band centre, default 1.6), `?bubbles=above|below` (cluster side, default
   above). Band height defaults to 0.3 m here; `?band=` overrides. Arcs default to none.
 - `?links=ticks|arcs` (bubbles mode) — link style: ticks round each bubble with arcs only between
-  open clusters (default), or also a faint arc from every tick to its region, which shifts onto
+  open clusters, or (default) also a faint arc from every tick to its region, which shifts onto
   the other bubble when that region's cluster opens.
 - `?fpv=1` (bubbles mode) — first-person view: the camera rides with one simulated visitor (starts
   the simulation); the camera glides between the room view and the visitor's eyes. `?fov=<degrees>`

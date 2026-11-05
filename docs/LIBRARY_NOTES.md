@@ -104,6 +104,11 @@ Three wall visualizers, each placed by a rigid `modelMatrix` set on every LayerD
   should do this.
   A seamless orbit ↔ first-person transition works as a dolly zoom (perspective narrowed to 0.5°
   stands in for the orthographic end); see HANDOFF "First-person view".
+- **View `padding` shears an orthographic view.** deck's `createProjectionMatrix` applies padding
+  by adding to `matrix[8]`/`matrix[9]` (a z-dependent term); after the perspective divide that is a
+  screen offset, but with an orthographic projection (w = 1) it is a shear. Offsetting the
+  content in the orthographic OrbitView needs a moved target instead (and, to keep rotation about
+  the content, re-solving the target on rotation — `keepPivot` in GenomeRoomApp).
 - **Billboarded pixel sizes assume a map-like focal distance.** deck's
   `project_pixel_size_to_clipspace` scales by `project.focalDistance`, not the vertex's clip `w`.
   IconLayer (billboard), TextLayer (billboard) and LineLayer pixel widths are right under the

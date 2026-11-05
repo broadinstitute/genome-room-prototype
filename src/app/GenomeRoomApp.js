@@ -223,8 +223,8 @@ export class GenomeRoomApp extends DemoApp {
         //   none  — no links (default in bubbles mode)
         // Bubbles mode link style. "ticks": ticks round each bubble, arcs only between open
         // clusters. "arcs": also a faint arc from each tick to its region on the band, which
-        // shifts to the other bubble when that region's cluster opens. URL ?links=ticks|arcs.
-        bubbleLinks: params.get("links") === "arcs" ? "arcs" : "ticks",
+        // shifts to the other bubble when that region's cluster opens (default). URL ?links=ticks|arcs.
+        bubbleLinks: params.get("links") === "ticks" ? "ticks" : "arcs", // default: faint arcs
         arcs: ARC_MODES.includes(params.get("arcs")) ? params.get("arcs") : params.get("mode") === "tracks" ? "floor" : "none",
         // Trait tiers whose links are drawn (genome.js TRAIT_TIERS). URL: ?tiers=few,dozens.
         // Default: DEFAULT_TIERS. The strip's cells are not filtered.
@@ -689,6 +689,32 @@ export class GenomeRoomApp extends DemoApp {
         const vs = _appState.vizDeckManager?.deck?.viewManager?.getViewState("3d-scene"); // no fit fallback: may run before the ribbon exists
         return vs?.bearing ?? vs?.rotationOrbit ?? 0;
       },
+      // Orbit view state `next` with its target moved so the room's centre stays on the pixel it
+      // occupies in the current view. Only for rotation changes; pans and zooms pass through.
+      keepPivot: (next) => {
+        const deck = _appState.vizDeckManager?.deck;
+        const prev = deck?.viewManager?.getViewState("3d-scene");
+        if (_appState.fpv.on || !prev || next.rotationOrbit == null || prev.rotationOrbit == null || !_appState.ribbon) return next;
+        if (Math.abs(next.rotationOrbit - prev.rotationOrbit) < 1e-9 && Math.abs(next.rotationX - prev.rotationX) < 1e-9) return next;
+        const corners = _appState.worldCorners();
+        const mid = (i) => (Math.min(...corners.map((c) => c[i] ?? 0)) + Math.max(...corners.map((c) => c[i] ?? 0))) / 2;
+        const pivot = [mid(0), mid(1), mid(2)];
+        const W = deck.width || window.innerWidth;
+        const H = deck.height || window.innerHeight;
+        const view = new OrbitView({ id: "pivot", orthographic: true });
+        const vpPrev = view.makeViewport({ width: W, height: H, viewState: prev });
+        const vpNext = view.makeViewport({ width: W, height: H, viewState: next });
+        const p0 = vpPrev.project(pivot);
+        const p1 = vpNext.project(pivot);
+        // Screen centre must show what is now at centre − (p0 − p1): the target moves there, on
+        // the floor (slide the unprojected point along the view direction to z = 0).
+        const q = vpNext.unproject([W / 2 - (p0[0] - p1[0]), H / 2 - (p0[1] - p1[1])]);
+        const rx = (next.rotationX * Math.PI) / 180;
+        const ro = (next.rotationOrbit * Math.PI) / 180;
+        const dir = [Math.cos(rx) * Math.sin(ro), Math.cos(rx) * Math.cos(ro), -Math.sin(rx)];
+        const lambda = Math.abs(dir[2]) > 1e-6 ? -(q[2] ?? 0) / dir[2] : 0;
+        return { ...next, target: [q[0] + dir[0] * lambda, q[1] + dir[1] * lambda, 0] };
+      },
       // What the camera shows now, including any orbit/zoom the user did by hand.
       currentViewState: () => {
         const deck = _appState.vizDeckManager.deck;
@@ -837,6 +863,23 @@ export class GenomeRoomApp extends DemoApp {
 
     _appState.update();
     _appState.vizDeckManager.onDeckHover(_appState.handleDeckHover);
+
+    // Rotate about the room's centre. The orbit view pivots on its target, which the camera fit
+    // places off the room (the floor point behind the room's screen centre, so the room sits in
+    // the area the header leaves free; the target must stay at z = 0). deck uses the view state
+    // returned from onViewStateChange, so when a drag changes the rotation, re-solve the target
+    // to keep the room's centre on the same pixel. (View padding would keep the target central,
+    // but deck applies it as a projection skew that shears an orthographic view.)
+    {
+      const deck = _appState.vizDeckManager.deck;
+      const baseOnViewStateChange = deck.props.onViewStateChange;
+      deck.setProps({
+        onViewStateChange: (params) => {
+          const viewState = baseOnViewStateChange(params) || params.viewState;
+          return _appState.keepPivot(viewState);
+        },
+      });
+    }
     // Start standing mid-strip, at the first bin there with a few-region trait (almost every bin
     // has a height hit, which on its own shows only the "everything" end of the story).
     const start = Math.floor(_appState.bins.length / 2);

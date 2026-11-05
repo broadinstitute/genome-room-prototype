@@ -48,9 +48,11 @@ export function mountControls(parent, _appState) {
   const debugBody = document.createElement("div");
   debugBody.style.cssText = "display:none;flex-direction:column;gap:8px;";
   const debugToggle = document.createElement("button");
+  debugToggle.className = "gr-btn"; // header palette (style injected by mountMainPanel)
   const setDebugOpen = (open) => {
     debugBody.style.display = open ? "flex" : "none";
     debugToggle.textContent = open ? "Debug ▾" : "Debug ▸";
+    debugToggle.classList.toggle("on", open);
   };
   debugToggle.onclick = () => setDebugOpen(debugBody.style.display === "none");
   setDebugOpen(false);
@@ -208,7 +210,7 @@ export function mountControls(parent, _appState) {
   for (const button of linkButtons) {
     button.onclick = () => {
       _appState.setBubbleLinks(button.dataset.links);
-      setParam("links", button.dataset.links === "arcs" ? "arcs" : null);
+      setParam("links", button.dataset.links === "ticks" ? "ticks" : null); // default: faint arcs
     };
   }
   const arcButtons = top.querySelectorAll("button[data-arcs]");
@@ -309,6 +311,9 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
       color:${rgba(c.text, 1)}; font-family:Helvetica,Arial,sans-serif; }
     .gr-title { font-size:34px; font-weight:600; letter-spacing:.3px; line-height:1.1; }
     .gr-subtitle { font-size:15px; margin-top:6px; color:${rgba(c.text, 0.85)}; }
+    .gr-subtitle a { color:inherit; text-decoration:underline; text-decoration-color:${rgba(accent, 0.6)};
+      text-underline-offset:3px; pointer-events:auto; }
+    .gr-subtitle a:hover { text-decoration-color:${rgba(c.text, 1)}; }
     .gr-desc { font-size:13px; line-height:1.5; margin-top:8px; color:${rgba(c.text, 0.62)}; max-width:760px; }
     .gr-controls { display:flex; flex-direction:column; gap:20px; font-size:13px; }
     .gr-group { display:flex; flex-direction:row; align-items:flex-start; gap:12px; pointer-events:auto; align-self:flex-start; }
@@ -329,6 +334,10 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
     .gr-seg button:hover { color:${rgba(c.text, 1)}; background:${rgba(accent, 0.08)}; }
     .gr-seg button.on { background:${rgba(c.band[1], 0.45)}; color:${rgba(c.text, 1)}; }
     .gr-seg button:disabled { opacity:.4; cursor:default; }
+    .gr-btn { background:${rgba(c.background, 0.9)}; color:${rgba(c.text, 0.75)}; border:1px solid ${rgba(accent, 0.35)};
+      border-radius:4px; padding:5px 12px; font:13px Helvetica,Arial,sans-serif; cursor:pointer; }
+    .gr-btn:hover { color:${rgba(c.text, 1)}; background:${rgba(accent, 0.1)}; }
+    .gr-btn.on { background:${rgba(c.band[1], 0.45)}; color:${rgba(c.text, 1)}; }
     .gr-header input[type=range] { accent-color:${rgba(c.band[1], 1)}; }
     .gr-header input[type=checkbox] { accent-color:${rgba(c.band[1], 1)}; margin:0; }`;
   document.head.appendChild(css);
@@ -340,8 +349,9 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
   header.innerHTML = `
     <div>
       <div class="gr-title">Polygenomic Exploration Room</div>
-      <div class="gr-subtitle">A virtual prototype of an immersive room experience targeting Ars Electronica's Deep Space
-        projection system (installed at the Boston Museum of Science)</div>
+      <div class="gr-subtitle">A virtual prototype of an immersive room experience targeting
+        <a href="https://ars.electronica.art/solutions/en/deepspace/" target="_blank" rel="noopener">Ars Electronica's Deep Space
+        projection system</a> (installed at the Boston Museum of Science)</div>
       <div class="gr-desc">Images are projected across the walls and floor, and laser (lidar) tracking follows where
         each visitor stands. The human genome runs around the walls at head height. Linger in front of a region and
         the traits linked to it there open above it; when several people stand at regions that share a trait, the
