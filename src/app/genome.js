@@ -51,28 +51,62 @@ export function formatBp(bp) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// PLACEHOLDER association values. Not data. Stands in for per-bin trait signal until the
-// GWAS Catalog pipeline exists; densities vary per trait so one row behaves like a highly
-// polygenic trait ("everything lights up") and the rest are progressively sparser.
+// GWAS Catalog traits. gwas_traits.json is built by scripts/build_gwas_traits.py: one study per
+// trait, hits at p < 5e-8, pre-binned at 1 Mb (strongest -log10 p, hit count, gene of the
+// strongest hit). Re-binned here to the app's bin size.
 // ---------------------------------------------------------------------------------------------
 
-const PLACEHOLDER_DENSITIES = [0.25, 0.1, 0.06, 0.04, 0.03, 0.02, 0.015, 0.01];
+const SIGNIFICANT_MLOG = 7.30103; // -log10(5e-8)
 
-function hash01(a, b) {
-  // Integer hash of (a, b) to [0, 1). Deterministic so the placeholder is stable across reloads.
-  let h = (a * 374761393 + b * 668265263) | 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
+// Architecture tiers by how many app bins a trait touches. Used for colour families and the legend.
+export const TRAIT_TIERS = [
+  { key: "few", label: "One or a few regions", maxBins: 6 },
+  { key: "dozens", label: "Dozens of regions", maxBins: 60 },
+  { key: "many", label: "Hundreds of regions", maxBins: Infinity },
+];
 
-export function makePlaceholderTraits(bins, traitCount) {
-  return Array.from({ length: traitCount }, (_, t) => {
-    const density = PLACEHOLDER_DENSITIES[t % PLACEHOLDER_DENSITIES.length];
+/**
+ * Traits with per-bin values in [0, 1]: log-scaled strength of the bin's strongest hit relative to
+ * the trait's strongest, so a trait dominated by one locus (eye colour at HERC2/OCA2) shows one
+ * bright bin and dim others. 0 = no significant hit in the bin.
+ */
+export function makeGwasTraits(bins, data, binSizeBp) {
+  const sourceBin = data.source.binBp;
+  if (binSizeBp % sourceBin !== 0) throw new Error(`bin size ${binSizeBp} is not a multiple of ${sourceBin}`);
+  const chromStart = {};
+  for (const bin of bins) if (!(bin.chrom in chromStart)) chromStart[bin.chrom] = bin.index;
+
+  return data.traits.map((t, index) => {
+    const byBin = new Map(); // bin index -> { mlog, hits, gene }
+    for (const [chrom, mb, mlog, hits, gene] of t.loci) {
+      if (!(chrom in chromStart)) continue;
+      const binIndex = chromStart[chrom] + Math.floor((mb * sourceBin) / binSizeBp);
+      const cur = byBin.get(binIndex);
+      if (!cur) byBin.set(binIndex, { mlog, hits, gene });
+      else {
+        cur.hits += hits;
+        if (mlog > cur.mlog) Object.assign(cur, { mlog, gene });
+      }
+    }
+    const maxMlog = Math.max(...[...byBin.values()].map((b) => b.mlog));
+    const span = Math.log(maxMlog / SIGNIFICANT_MLOG) || 1;
     const values = bins.map((bin) => {
-      const r = hash01(t + 1, bin.index + 1);
-      return r < density ? 0.3 + 0.7 * hash01(bin.index + 7, t + 13) : 0;
+      const b = byBin.get(bin.index);
+      return b ? Math.max(0.05, Math.log(b.mlog / SIGNIFICANT_MLOG) / span) : 0;
     });
-    return { index: t, label: `trait ${t + 1} (placeholder)`, shortLabel: `trait ${t + 1}`, density, values };
+    const binCount = byBin.size;
+    return {
+      index,
+      key: t.key,
+      label: t.label,
+      shortLabel: t.shortLabel,
+      study: t.study,
+      significantHits: t.significantHits,
+      byBin,
+      values,
+      binCount,
+      density: binCount / bins.length,
+      tier: TRAIT_TIERS.find((tier) => binCount <= tier.maxBins).key,
+    };
   });
 }

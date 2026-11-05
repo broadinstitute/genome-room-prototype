@@ -11,8 +11,14 @@ through a surface function in the shader. Findings, as requirements for a librar
 [docs/LIBRARY_NOTES.md](docs/LIBRARY_NOTES.md). The earlier rigid-plane version (three wall
 visualizers) is commit `93fe382`.
 
-**Data status:** genome bins come from real GRCh38 chromosome lengths (5 Mb bins). Trait values
-and the floor links derived from them are **placeholders**, not data.
+**Data:** genome bins come from GRCh38 chromosome lengths (5 Mb bins). The 16 traits are GWAS
+Catalog associations (release e116, 2026-10-29), one study per trait, hits at p < 5e-8, pre-binned
+into `src/app/gwas_traits.json` by `scripts/build_gwas_traits.py`. To rebuild:
+
+```bash
+curl -L -o catalog.zip https://www.ebi.ac.uk/gwas/api/search/downloads/associations/v1.0.2
+python3 scripts/build_gwas_traits.py catalog.zip
+```
 
 ## Run
 
@@ -27,6 +33,8 @@ URL options:
 - `?arcs=floor|wall|drop` — how a region's links are drawn: arcs across the floor (default), arcs
   on the wall hanging below the genome, or floor arcs plus a line down the wall from each linked
   region to its arc's end.
+- `?tiers=few,dozens,many` — which trait tiers' links are drawn (any subset; default all). The
+  strip's cells are not filtered.
 - `?tracks=none` — hide the trait rows. Traits still drive the links and their colours.
 - `?band=<metres>|full` — chromosome band height when the trait rows are hidden. Default: one trait
   row's height, so hiding the tracks leaves the band unchanged.
@@ -40,7 +48,8 @@ URL options:
   strip, so genome distances are preserved and nothing separates.
 - **Shape** buttons morph between room, rounded room and half-cylinder.
 - Hover a cell to stand a visitor in front of that region. Links fan out to every other region
-  sharing a trait with it.
+  sharing a trait with it. The tooltip lists every trait with a hit in that bin.
+- The checkbox on each legend tier heading shows or hides that tier's links live.
 - **Arcs** buttons switch the link style live. The **Trait tracks** checkbox reloads with
   `?tracks=none` toggled.
 - Drag to orbit, scroll to zoom (deck.gl orbit camera).
@@ -54,7 +63,9 @@ URL options:
 - `src/app/strip_setup.js` — the genome strip visualizer.
 - `src/app/floor_setup.js` — floor, floor arcs, stand-in visitor, corner registration brackets at
   the physical room's 8 corners.
-- `src/app/genome.js` — GRCh38 lengths, binning, placeholder trait values.
+- `src/app/genome.js` — GRCh38 lengths, binning, GWAS traits re-binned to the app's bins, tiers.
+- `src/app/gwas_traits.json` — generated; do not edit by hand.
+- `scripts/build_gwas_traits.py` — the curated trait list (one study per trait) and the build.
 - `src/app/GenomeRoomApp.js` — app state, parameters, assembly and shape animation, camera, wall
   arc / drop line geometry.
 - `src/app/controls.js` — plain-DOM control and readout panels.

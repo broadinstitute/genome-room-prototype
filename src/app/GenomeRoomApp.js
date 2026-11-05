@@ -1,6 +1,7 @@
 import { DemoApp } from "pattern-app-kit/core";
 import { VisualizerDeckManager } from "viz_sandbox/js/deck_manager/deck_manager";
-import { makeGenomeBins, makePlaceholderTraits, formatBp } from "./genome.js";
+import { makeGenomeBins, makeGwasTraits, formatBp, TRAIT_TIERS } from "./genome.js";
+import GWAS_TRAITS from "./gwas_traits.json";
 import {
   makeProfiles,
   lerpProfile,
@@ -14,16 +15,13 @@ import { makeStripViz, applyRibbon } from "./strip_setup.js";
 import { makeFloorViz, floorArcPath } from "./floor_setup.js";
 import { mountControls } from "./controls.js";
 
-const TRAIT_COLORS = [
-  [255, 170, 60],
-  [90, 180, 255],
-  [120, 220, 140],
-  [240, 100, 120],
-  [200, 140, 255],
-  [255, 230, 90],
-  [80, 220, 220],
-  [255, 140, 200],
-];
+// Colour families by architecture tier (genome.js TRAIT_TIERS): warm = one or a few regions,
+// green = dozens, blue/violet = hundreds. Within a family, colours are assigned in trait order.
+const TIER_COLORS = {
+  few: [[255, 99, 71], [255, 150, 30], [255, 205, 60], [235, 60, 110], [255, 175, 130], [250, 230, 130], [205, 120, 60]],
+  dozens: [[80, 200, 120], [40, 180, 170], [160, 220, 80], [110, 230, 205], [70, 150, 95], [195, 240, 160]],
+  many: [[90, 150, 255], [175, 125, 255], [130, 205, 255]],
+};
 
 const ARC_MODES = ["floor", "wall", "drop"];
 
@@ -90,7 +88,6 @@ export class GenomeRoomApp extends DemoApp {
       room: { width: 24, depth: 16, height: 6 },
       layout: {
         binSizeBp: 5e6,
-        traitCount: 8,
         wallBaseHeight: 0.8, // genome strip starts this far above the floor
         stripHeight: 4.2, // and is this tall
         columnLabelSize: 0.3,
@@ -120,7 +117,8 @@ export class GenomeRoomApp extends DemoApp {
         empty: [36, 40, 52],
         visitor: [240, 240, 240],
       },
-      traitColors: TRAIT_COLORS,
+      traitColors: [], // per trait index, assigned from TIER_COLORS once the traits are built
+      gwasSource: GWAS_TRAITS.source,
       probeScatter: params.get("probe") === "scatter",
       // What the strip shows. URL: ?tracks=none drops the trait rows (traits still drive the
       // floor arcs); the chromosome band then takes the full strip height.
@@ -135,6 +133,13 @@ export class GenomeRoomApp extends DemoApp {
         //   wall  — arcs on the wall surface, hanging below the genome
         //   drop  — floor arcs plus a line down the wall from each region to its arc's end
         arcs: ARC_MODES.includes(params.get("arcs")) ? params.get("arcs") : "floor",
+        // Trait tiers whose links are drawn (genome.js TRAIT_TIERS). URL: ?tiers=few,dozens.
+        // Default: all. The strip's cells are not filtered.
+        tiers: new Set(
+          params.get("tiers")
+            ? params.get("tiers").split(",").filter((k) => TRAIT_TIERS.some((t) => t.key === k))
+            : TRAIT_TIERS.map((t) => t.key),
+        ),
       },
 
       assembly: 0,
@@ -155,7 +160,7 @@ export class GenomeRoomApp extends DemoApp {
       cellColor: (d) => {
         if (d.kind === "band") return _appState.colors.band[d.bin.chromIndex % 2];
         if (!(d.value > 0)) return _appState.colors.empty;
-        const c = _appState.traitColors[d.trait.index % _appState.traitColors.length];
+        const c = _appState.traitColors[d.trait.index];
         const k = 0.35 + 0.65 * d.value;
         const e = _appState.colors.empty;
         return [lerp(e[0], c[0], k), lerp(e[1], c[1], k), lerp(e[2], c[2], k)];
@@ -221,15 +226,31 @@ export class GenomeRoomApp extends DemoApp {
       setFocusBin: (binIndex) => {
         if (binIndex === _appState.focusBin) return;
         _appState.focusBin = binIndex;
+        _appState.rebuildLinks();
+      },
+
+      setTierVisible: (tier, visible) => {
+        if (visible) _appState.display.tiers.add(tier);
+        else _appState.display.tiers.delete(tier);
+        _appState.rebuildLinks();
+      },
+
+      // Links from the focus bin to every other bin sharing a trait in a visible tier.
+      rebuildLinks: () => {
+        const binIndex = _appState.focusBin;
+        if (binIndex == null) return;
         const links = [];
         for (const trait of _appState.traits) {
-          if (!(trait.values[binIndex] > 0)) continue;
-          const color = [..._appState.traitColors[trait.index % _appState.traitColors.length], 200];
+          if (!_appState.display.tiers.has(trait.tier) || !(trait.values[binIndex] > 0)) continue;
+          const color = [..._appState.traitColors[trait.index], 200];
           for (const bin of _appState.bins) {
             if (bin.index === binIndex || !(trait.values[bin.index] > 0)) continue;
             links.push({ trait, bin, color });
           }
         }
+        // Draw order: the most polygenic traits first, so a few-locus trait's links sit on top
+        // of the hundreds that height brings with it.
+        links.sort((p, q) => q.trait.binCount - p.trait.binCount);
         _appState.focusLinks = links;
         _appState.rebuildWallLinks();
         _appState.rebuildFloor();
@@ -424,7 +445,13 @@ export class GenomeRoomApp extends DemoApp {
 
     // ---- data ------------------------------------------------------------------------------
     _appState.bins = makeGenomeBins(_appState.layout.binSizeBp);
-    _appState.traits = makePlaceholderTraits(_appState.bins, _appState.layout.traitCount);
+    _appState.traits = makeGwasTraits(_appState.bins, GWAS_TRAITS, _appState.layout.binSizeBp);
+    const tierUsed = {};
+    _appState.traitColors = _appState.traits.map((t) => {
+      const family = TIER_COLORS[t.tier];
+      const i = (tierUsed[t.tier] = (tierUsed[t.tier] ?? -1) + 1);
+      return family[i % family.length];
+    });
     _appState.profiles = makeProfiles(_appState.room);
     const stripLength = _appState.profiles.stripLength;
     _appState.barWidth = (stripLength - _appState.layout.rowLabelMargin) / _appState.bins.length; // derived
@@ -468,9 +495,12 @@ export class GenomeRoomApp extends DemoApp {
 
     _appState.update();
     _appState.vizDeckManager.onDeckHover(_appState.handleDeckHover);
-    // Start standing mid-strip, at the first bin there with any trait signal.
+    // Start standing mid-strip, at the first bin there with a few-region trait (almost every bin
+    // has a height hit, which on its own shows only the "everything" end of the story).
     const start = Math.floor(_appState.bins.length / 2);
-    const firstHit = _appState.bins.slice(start).find((b) => _appState.traits.some((t) => t.values[b.index] > 0));
+    const firstHit = _appState.bins
+      .slice(start)
+      .find((b) => _appState.traits.some((t) => t.tier === "few" && t.values[b.index] > 0));
     _appState.setFocusBin((firstHit ?? _appState.bins[start]).index);
     _appState.fitCamera();
 

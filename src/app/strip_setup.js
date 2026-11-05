@@ -109,10 +109,25 @@ export function makeStripViz(containerId, deckManager, bins, traits, layout, _ap
       return null;
     }
     const where = `chr${d.bin.chrom}:${formatBp(d.bin.start)}–${formatBp(d.bin.end)}`;
+    const hit = d.kind === "trait" ? d.trait.byBin.get(d.bin.index) : null;
     const what =
-      d.kind === "band" ? "chromosome band" : `${d.trait.label}: ${d.value > 0 ? d.value.toFixed(2) : "no signal"}`;
+      d.kind === "band"
+        ? "chromosome band"
+        : hit
+          ? `${d.trait.label}: ${hit.hits} significant hit${hit.hits > 1 ? "s" : ""}, strongest p = 1e-${Math.round(hit.mlog)}${hit.gene ? ` (${hit.gene})` : ""}`
+          : `${d.trait.label}: no significant hit`;
+    const study = d.kind === "trait" ? `<br/><span style="opacity:.6">${d.trait.study.firstAuthor} ${d.trait.study.date.slice(0, 4)}, ${d.trait.study.accession}</span>` : "";
+    // Every trait with a significant hit in this bin, whichever row is hovered.
+    const binTraits = traits
+      .map((t) => ({ t, h: t.byBin.get(d.bin.index) }))
+      .filter(({ h }) => h)
+      .map(({ t, h }) => {
+        const c = _appState.traitColors[t.index];
+        return `<div><span style="display:inline-block;width:8px;height:8px;margin-right:5px;background:rgb(${c[0]},${c[1]},${c[2]})"></span>${t.label} — p = 1e-${Math.round(h.mlog)}${h.gene ? ` (${h.gene})` : ""}</div>`;
+      });
+    const traitList = `<div style="margin-top:5px;opacity:.6">${binTraits.length ? `Traits in this bin (${binTraits.length})` : "No trait hits in this bin"}</div>${binTraits.join("")}`;
     return {
-      html: `<div style="font:11px Helvetica,Arial,sans-serif">${where}<br/>${what}<br/><span style="opacity:.6">bin ${d.bin.index}</span></div>`,
+      html: `<div style="font:11px Helvetica,Arial,sans-serif">${where}<br/>${what}${study}<br/><span style="opacity:.6">bin ${d.bin.index}</span>${traitList}</div>`,
       style: { background: "rgba(20,20,28,0.95)", color: "rgb(220,230,245)", padding: "6px 9px", borderRadius: "4px" },
     };
   };

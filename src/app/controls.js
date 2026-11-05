@@ -1,3 +1,5 @@
+import { TRAIT_TIERS } from "./genome.js";
+
 /**
  * Plain-DOM overlay: fold controls, trait legend, focus summary, and the placed-plane coordinate
  * readout. Kept out of React deliberately — it is diagnostic chrome for the spike.
@@ -19,8 +21,9 @@ export function mountControls(parent, _appState) {
   const shapes = ["room", "rounded", "arc"];
   top.innerHTML = `
     <div style="font-size:14px;font-weight:600;margin-bottom:4px">Genome Room — ribbon projection</div>
-    <div style="opacity:.7;margin-bottom:8px">Genome bins: GRCh38 lengths, ${_appState.bins.length} bins.
-      <b>Trait values are placeholders, not data.</b> Hover a cell to stand there.</div>
+    <div style="opacity:.7;margin-bottom:8px">GRCh38, ${_appState.bins.length} bins. Traits: GWAS Catalog
+      (${_appState.gwasSource.catalog.replace(/^.*_(e\d+_r[\d-]+).*$/, "$1")}), one study each, hits at
+      ${_appState.gwasSource.threshold}. Hover a cell to stand there.</div>
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
       <button data-assembly="0">Flat strip</button>
       <button data-assembly="1">Assembled</button>
@@ -77,12 +80,27 @@ export function mountControls(parent, _appState) {
   };
   _appState.onStateChange();
 
-  top.querySelector('[data-role="legend"]').innerHTML = _appState.traits
-    .map((t) => {
-      const c = _appState.traitColors[t.index % _appState.traitColors.length];
-      return `<div><span style="display:inline-block;width:10px;height:10px;background:${rgb(c)};margin-right:6px"></span>${t.label} — ${(t.density * 100).toFixed(1)}% of bins</div>`;
-    })
-    .join("");
+  top.querySelector('[data-role="legend"]').innerHTML = TRAIT_TIERS.map((tier) => {
+    const rows = _appState.traits
+      .filter((t) => t.tier === tier.key)
+      .map((t) => {
+        const c = _appState.traitColors[t.index];
+        return `<div><span style="display:inline-block;width:10px;height:10px;background:${rgb(c)};margin-right:6px"></span>${t.label} — ${t.binCount} bin${t.binCount > 1 ? "s" : ""}</div>`;
+      })
+      .join("");
+    if (!rows) return "";
+    const on = _appState.display.tiers.has(tier.key);
+    return `<label style="display:flex;gap:6px;align-items:center;margin-top:4px">
+        <input data-tier="${tier.key}" type="checkbox" ${on ? "checked" : ""} /><span style="opacity:.75">${tier.label}</span>
+      </label><div data-tier-rows="${tier.key}" style="padding-left:20px;opacity:${on ? 1 : 0.35}">${rows}</div>`;
+  }).join("");
+  // Tier checkboxes filter the links live; the strip's cells are unaffected.
+  for (const box of top.querySelectorAll("input[data-tier]")) {
+    box.onchange = () => {
+      _appState.setTierVisible(box.dataset.tier, box.checked);
+      top.querySelector(`[data-tier-rows="${box.dataset.tier}"]`).style.opacity = box.checked ? "1" : "0.35";
+    };
+  }
 
   // ---- bottom-left: focus + readout ----------------------------------------------------------
   const bottom = document.createElement("div");
