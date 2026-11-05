@@ -60,8 +60,12 @@ its chord. Heatmap cells are narrow enough; the strip backdrop had to be cut int
 projected visualizers.
 
 **5. Pixel-width lines and paths can't use this hook.** Their width is applied in clip space before
-`DECKGL_FILTER_GL_POSITION`, so remapping the center collapses the width. Not hit here — the
-heatmap uses none, and the floor isn't projected — but it bounds what the extension covers.
+`DECKGL_FILTER_GL_POSITION`, so remapping the center collapses the width. The wall arcs, drop
+lines and brackets are thin polygons for this reason. **Exception (verified 2026-11-05):** a
+`PathLayer` with `billboard: false` and `widthUnits: "common"` works — deck's vertex shader then
+adds the width offset to `geometry.position` in common space before the hook, so the whole
+ribbon maps. The bubbles-mode faint arcs use it (thousands of paths rebuilt per frame, far cheaper
+than re-tessellating polygons). Pixel widths remain unsupported.
 
 ## Plane placement (commit `93fe382`)
 
@@ -86,7 +90,27 @@ Three wall visualizers, each placed by a rigid `modelMatrix` set on every LayerD
 - **Orthographic-only view.** `VisualizerDeckManager.generateView()` hard-codes
   `orthographic: true`, so a room seen from outside always shows part of the surface from behind
   (handled by the cutaway). A visitor's-eye perspective view needs a configurable view, with the
-  fit/unproject helpers following it.
+  fit/unproject helpers following it. **Workaround in use (2026-11-05):** the manager's
+  `setView()` accepts a deck `FirstPersonView` with the same id ("3d-scene"), positioned in world
+  metres (no latitude → non-geospatial viewport); every layer, the ribbon extension (its facing
+  test uses `project.cameraPosition`) and picking work under it. The app's own fit/animation code
+  has to stand aside while it is active, and `generateView()` restores the orbit view.
+  **deck 9.1.1 bug hit by swapping views:** when a view keeps its id but its controller type
+  changes (OrbitController ↔ FirstPersonController), `ViewManager._updateController` creates the
+  new controller and never finalizes the old one, which stays subscribed to pointer events. Here
+  the stale FirstPersonController re-emitted its old view state at the end of every drag, so the
+  orbit camera snapped back after leaving first person. Workaround: finalize the replaced
+  controller after `setView` (`swapView` in `src/app/first_person.js`). A library `setView`
+  should do this.
+  A seamless orbit ↔ first-person transition works as a dolly zoom (perspective narrowed to 0.5°
+  stands in for the orthographic end); see HANDOFF "First-person view".
+- **Billboarded pixel sizes assume a map-like focal distance.** deck's
+  `project_pixel_size_to_clipspace` scales by `project.focalDistance`, not the vertex's clip `w`.
+  IconLayer (billboard), TextLayer (billboard) and LineLayer pixel widths are right under the
+  orthographic OrbitView, but under a non-geospatial FirstPersonView (focal distance 1) they
+  shrink by the distance: icons become specks, lines vanish. Billboarded `PathLayer` is the
+  exception (its offset is multiplied by `w`). Relevant if the library gets a configurable
+  perspective view: its chrome (pixel-width axes, ticks, billboard labels) would hit this.
 - **Orbit target pinned to z = 0** (`constrainViewStateTarget`).
 - **Cell gaps alias at small cell sizes.** At ~2 px per bin, the inter-cell gap lands on whole pixel
   columns in a beat pattern; those pixels pick the hit area. Not projection-related.

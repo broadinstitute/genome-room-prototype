@@ -5,6 +5,7 @@ import { BoundedSolidPolygonLayer } from "viz_sandbox/js/bounded_visualizers/sha
 import { LayerDescription } from "viz_sandbox/js/heatmap_visualizer/utils/layer_description";
 import { formatBp } from "./genome.js";
 import { RIBBON_EXTENSION } from "./ribbon.js";
+import { addBubbleLayers } from "./bubbles.js";
 
 const BACKDROP_LAYER_ID = "stripBackdropLayer";
 const WALL_LINKS_LAYER_ID = "wallLinksLayer";
@@ -98,13 +99,34 @@ export function makeStripViz(containerId, deckManager, bins, traits, layout, _ap
   viz.heatmapDataAccessor = (d) => d.value;
   viz.getHeatMapFillColor = (d) => _appState.cellColor(d);
   viz.appState.columnAxisLabelTextAngle = 0;
-  viz.setColumnLabelPosition("top", false);
+  if (layout.bubbles && layout.bubbleSide === "above") {
+    // Ticks and bubbles use the space above the band; chromosome labels go underneath.
+    viz.setColumnLabelPosition("bottom", false);
+    viz.appState.columnAxisLabelTextAnchor = "start";
+  } else {
+    viz.setColumnLabelPosition("top", false);
+  }
   viz.setRowLabelPosition("left", false);
-  viz.appState.colAxisTitleText = `genome position (GRCh38, ${formatBp(layout.binSizeBp)} bins)`;
+  // Chromosome labels in Helvetica, set clear of the band: the library centres each label on a
+  // point only ~0.06 m off the band (less than half a 0.3 m label). Anchor the label's far-side
+  // baseline instead, columnLabelGap from the band.
+  viz.appState.columnAxisLabelGap = layout.columnLabelGap;
+  viz.appState.layerDescriptions["columnAxisLabelLayer"].setLayerProps({
+    fontFamily: "Helvetica, Arial, sans-serif",
+    getAlignmentBaseline: viz.appState.columnLabelPosition === "bottom" ? "top" : "bottom",
+  });
+  viz.appState.colAxisTitleText = layout.bubbles ? "" : `genome position (GRCh38, ${formatBp(layout.binSizeBp)} bins)`;
   viz.appState.rowAxisTitleText = traitTracks ? "trait" : "";
 
   viz.defaultTooltipFunction = (info) => {
     const d = info?.object;
+    if (d?.kind === "bubble") {
+      const h = d.hit;
+      return {
+        html: `<div style="font:11px Helvetica,Arial,sans-serif"><b>${d.trait.label}</b><br/>${d.trait.geneCount} associated gene${d.trait.geneCount > 1 ? "s" : ""} genome-wide<br/>here: ${h.hits} significant hit${h.hits > 1 ? "s" : ""}, strongest p = 1e-${Math.round(h.mlog)}${h.gene ? ` (${h.gene})` : ""}<br/><span style="opacity:.6">${d.trait.study.firstAuthor} ${d.trait.study.date.slice(0, 4)}, ${d.trait.study.accession}</span></div>`,
+        style: { background: "rgba(20,20,28,0.95)", color: "rgb(220,230,245)", padding: "6px 9px", borderRadius: "4px" },
+      };
+    }
     if (!d || d.id === "plot_hit_area" || !d.bin || (info.layer && !viz.isTooltipEnabledLayer(info.layer))) {
       return null;
     }
@@ -141,12 +163,18 @@ export function makeStripViz(containerId, deckManager, bins, traits, layout, _ap
 
   addBackdropLayer(viz, stripLength, wallHeight, _appState);
   addWallLinksLayer(viz, _appState);
+  if (layout.bubbles) addBubbleLayers(viz, _appState);
   if (_appState.probeScatter && traitTracks) addScatterProbe(viz, bins, traits, { barWidth, rowHeight });
 
   // Plot rect in ribbon coordinates: after the row-label margin, top-aligned to the strip, so
-  // the band keeps its place whether or not the trait rows are drawn below it.
+  // the band keeps its place whether or not the trait rows are drawn below it. In bubbles mode,
+  // centred on plotCenterHeight (head height) instead.
   const plotHeight = rowCount * rowHeight;
-  _appState.stripPlotBottom = wallBaseHeight + layout.stripHeight - plotHeight; // for the cursor readout
+  _appState.stripPlotHeight = plotHeight;
+  _appState.stripPlotBottom =
+    layout.plotCenterHeight != null
+      ? layout.plotCenterHeight - plotHeight / 2
+      : wallBaseHeight + layout.stripHeight - plotHeight; // for the cursor readout
   viz.setPlotPosition([rowLabelMargin, _appState.stripPlotBottom], [bins.length * barWidth, plotHeight]);
   return viz;
 }
@@ -213,7 +241,9 @@ function addWallLinksLayer(viz, _appState) {
           id: qid,
           data: rows,
           getPolygon: (d) => d.ring,
-          getFillColor: (d) => d.color,
+          getFillColor: _appState.wallQuadColor,
+          // Geometry is fixed per link set; only colours change per animation frame.
+          updateTriggers: { getFillColor: _appState.linkFrame },
           pickable: false, // hover on the strip moves the focus; links would steal it
           parameters: { depthTest: false },
         });

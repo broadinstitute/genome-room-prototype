@@ -102,6 +102,8 @@ export function makeGwasTraits(bins, data, binSizeBp) {
       shortLabel: t.shortLabel,
       study: t.study,
       significantHits: t.significantHits,
+      // Distinct mapped genes over the trait's 1 Mb loci (the strongest hit's gene in each).
+      geneCount: new Set(t.loci.map((l) => l[4]).filter(Boolean)).size || t.loci.length,
       byBin,
       values,
       binCount,

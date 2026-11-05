@@ -35,7 +35,7 @@ export function makeProfiles(room) {
   const room_ = cornered(0.3);
   return {
     stripLength: L,
-    room: { label: "Room", ...room_ },
+    room: { label: "Square", ...room_ },
     rounded: { label: "Rounded", ...cornered(8) },
     // Constant curvature over the whole length: a half-cylinder.
     arc: { label: "Arc", lengths: room_.lengths, turns: room_.lengths.map((len) => (-Math.PI * len) / L) },
