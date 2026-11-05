@@ -469,10 +469,13 @@ when it is built, so changing them means a reload (the checkbox and Wall height 
 - **Library change**: the `viz.setProjection({glsl, uniforms, map, invert})` sketch in
   LIBRARY_NOTES.md, plus the `BoundedScatterplotLayer` injection-merge bug found here.
 - More projections, e.g. a floor-plus-walls continuous surface or an irregular room plan.
-- Deployment. The template's GitHub Pages workflow (`.github/workflows/build-deploy.yml`) runs on
-  every push to `main`; it needs Pages enabled for the repo (source: GitHub Actions) and the
-  `ACTIONS_CLASSIC` secret for the private dependency installs. pattern-deploy (App Engine) is not
-  set up. Ask before changing either.
+- Deployment: GitHub Pages (https://broadinstitute.github.io/genome-room-prototype/), as in
+  pattern_viz_demos. The workflow (`.github/workflows/build-deploy.yml`) runs on every push to
+  `main`. Set up: Pages enabled with source "GitHub Actions"; `package-lock.json` tracked (the
+  workflow's npm cache needs it; `prebuild` still refreshes viz_sandbox to `main`). It also needs
+  the repo secret `ACTIONS_CLASSIC` (a classic PAT with repo read, for the private pattern-app-kit
+  and viz_sandbox installs) — a repo-level secret in pattern_viz_demos, not inherited.
+  pattern-deploy (App Engine) is not set up.
 
 ## File map
 
