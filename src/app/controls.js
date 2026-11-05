@@ -1,4 +1,5 @@
 import { TRAIT_TIERS } from "./genome.js";
+import patternLogoUrl from "./assets/pattern-logo-WHITE.svg"; // copied from pattern-site/static
 
 /**
  * Plain-DOM overlay. Top left: the exhibit panel (title, what this is, four controls). Bottom
@@ -39,6 +40,18 @@ export function mountControls(parent, _appState) {
   };
 
   mountMainPanel(root, _appState, refreshers, setParam);
+
+  // ---- bottom-left: Pattern logo, linking to the Pattern site ---------------------------------
+  const logo = document.createElement("a");
+  logo.href = "http://pattern.broadinstitute.org";
+  logo.target = "_blank";
+  logo.rel = "noopener";
+  logo.title = "Pattern";
+  logo.style.cssText = "position:absolute;left:28px;bottom:22px;display:block;opacity:.75;transition:opacity .15s;";
+  logo.onmouseenter = () => (logo.style.opacity = "1");
+  logo.onmouseleave = () => (logo.style.opacity = ".75");
+  logo.innerHTML = `<img src="${patternLogoUrl}" alt="Pattern" style="display:block;height:34px;width:auto" />`;
+  root.appendChild(logo);
 
   // ---- bottom-right: collapsed Debug panel holding the full prototype UI ----------------------
   const debug = document.createElement("div");

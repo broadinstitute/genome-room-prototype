@@ -56,7 +56,9 @@ The header has `pointer-events: none` except on the control groups, so the canva
 draggable. Its layout is measured into `viewInset` (`top` = below the text, `left` = right of the
 control column, `headerBottom`), kept in step by a `ResizeObserver`. `fitViewState` fits the content
 into whichever free area shows it larger: right of the controls and below the text (the room) or
-full width below the whole header (the flat strip). Everything else is in a collapsed **Debug**
+full width below the whole header (the flat strip). The Pattern logo (`src/app/assets/pattern-logo-WHITE.svg`, copied from pattern-site/static,
+bundled by Vite since `publicDir` is off) sits bottom left, linking to pattern.broadinstitute.org.
+Everything else is in a collapsed **Debug**
 panel bottom right. Both register refreshers on `_appState.onStateChange`.
 
 **Defaults**: assembled (`?view=flat` for the strip), rounded, bubbles mode (`?mode=tracks` for the
