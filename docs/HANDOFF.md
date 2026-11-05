@@ -35,7 +35,7 @@ world X-Y plane**, to shape a possible library change. That is what LIBRARY_NOTE
 
 ## Current state
 
-On `main` (see `git log`). No git remote; nothing pushed or deployed.
+On `main` (see `git log`), pushed to the public repo https://github.com/broadinstitute/genome-room-prototype.
 
 **UI** (`src/app/controls.js`): a transparent exhibit header over the full-window canvas — title
 "Polygenomic Exploration Room" (34 px), subtitle naming the target (Ars Electronica's Deep Space
@@ -469,8 +469,10 @@ when it is built, so changing them means a reload (the checkbox and Wall height 
 - **Library change**: the `viz.setProjection({glsl, uniforms, map, invert})` sketch in
   LIBRARY_NOTES.md, plus the `BoundedScatterplotLayer` injection-merge bug found here.
 - More projections, e.g. a floor-plus-walls continuous surface or an irregular room plan.
-- A GitHub remote and deployment. The template's GitHub Pages and pattern-deploy paths are present
-  but not set up. Ask before creating anything.
+- Deployment. The template's GitHub Pages workflow (`.github/workflows/build-deploy.yml`) runs on
+  every push to `main`; it needs Pages enabled for the repo (source: GitHub Actions) and the
+  `ACTIONS_CLASSIC` secret for the private dependency installs. pattern-deploy (App Engine) is not
+  set up. Ask before changing either.
 
 ## File map
 
