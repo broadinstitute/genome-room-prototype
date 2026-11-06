@@ -134,6 +134,7 @@ export class GenomeRoomApp extends DemoApp {
         roomViewAbove: 2.5,
         roomViewRotationX: 16,
         roomViewOblique: 14,
+        roomViewPadding: 0.45, // zoom margin (log2) around a close-up
         rowLabelMargin: 3.2, // start of the strip, reserved for trait row labels (set to stripSideMargin without them)
         stripSideMargin: 1.6, // trait rows hidden (no row labels): this much padding at both ends
         stripEndMargin: 0, // derived: padding after the last bin
@@ -768,7 +769,7 @@ export class GenomeRoomApp extends DemoApp {
         for (const sv of [Math.max(0, s - layout.roomViewHalfWidth), s, Math.min(L, s + layout.roomViewHalfWidth)]) {
           for (const tv of [0, t1]) points.push(ribbonPoint(ribbon, sv, tv).point);
         }
-        return _appState.fitPoints(points, { rotationX: layout.roomViewRotationX, rotationOrbit }, { padding: 0.15 });
+        return _appState.fitPoints(points, { rotationX: layout.roomViewRotationX, rotationOrbit }, { padding: layout.roomViewPadding });
       },
       navState: () => {
         const screen = _appState.isScreen();

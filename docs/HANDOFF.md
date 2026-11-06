@@ -69,14 +69,15 @@ visualization palette (`colors.wallSurface` borders, `colors.band[1]` for the ac
 
 **Navigation bar** (`mountNavBar`): centred in the window, 9% of the window height above the
 bottom, over the visualization (the camera framing does not reserve space for it). [<] [−] [+] [>] as inline SVG
-glyphs (round-capped strokes); "<" ">" only while zoomed in; hidden in first person.
+glyphs (round-capped strokes); "<" ">" fade in only while zoomed in (opacity, 0.3 s; they keep
+their space); hidden in first person.
 - Screen mode: + = chromosome 10 (`zoomToChromosome`, as clicking its label); < > = previous /
   next chromosome (`zoomedChrom` is the focus); − = the full view.
 - Room mode: + = a close-up of the back-left corner; < > = neighbouring close-ups (`roomViews`:
   the middle of each centerline segment — left wall, back-left corner, back wall, back-right
   corner, right wall), each seen from inside at `roomViewRotationX` 16° tilt and
   `roomViewOblique` 14° turn, framing ±`roomViewHalfWidth` 4.5 m of wall from the floor to
-  `roomViewAbove` 2.5 m above the band; − = the default view. Transitions use `animateCamera`.
+  `roomViewAbove` 2.5 m above the band with margin `roomViewPadding` 0.45; − = the default view. Transitions use `animateCamera`.
 - The close-ups exposed a cutaway bug: the facing test compared against deck's
   `cameraPosition`, which for an orthographic view sits next to the target — beyond the wall in
   a close-up — so the wall read as back-facing. The shader now uses the view direction for

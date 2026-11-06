@@ -552,7 +552,8 @@ function mountNavBar(root, _appState, refreshers) {
     b.innerHTML = GLYPHS[glyph];
     b.title = title;
     b.setAttribute("aria-label", title);
-    b.style.cssText = "width:44px;height:38px;padding:0;display:flex;align-items:center;justify-content:center;";
+    b.style.cssText =
+      "width:44px;height:38px;padding:0;display:flex;align-items:center;justify-content:center;transition:opacity .3s;";
     b.onclick = onClick;
     nav.appendChild(b);
     return b;
@@ -567,7 +568,11 @@ function mountNavBar(root, _appState, refreshers) {
   refreshers.push(() => {
     const st = _appState.navState();
     nav.style.display = _appState.fpv.on ? "none" : "flex";
-    for (const b of [prev, next]) b.style.visibility = st.zoomed ? "visible" : "hidden";
+    // "<" ">" fade in and out (they keep their space, so the bar does not shift).
+    for (const b of [prev, next]) {
+      b.style.opacity = st.zoomed ? "" : "0";
+      b.style.pointerEvents = st.zoomed ? "" : "none";
+    }
     prev.disabled = !st.canPrev;
     next.disabled = !st.canNext;
     out.disabled = !st.zoomed;
