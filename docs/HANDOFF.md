@@ -44,7 +44,8 @@ Museum of Science), the description (projection on
 walls and floor, lidar tracking, linger to open traits, shared traits connect people), then one
 row per control group (label column, controls to its right), as segmented toggles styled from the
 visualization palette (`colors.wallSurface` borders, `colors.band[1]` for the active segment):
-- **Mode**: Room / Screen = `animateAssembly(1 / 0)`, `?view=flat`. In Screen mode a note beside
+- **Mode**: Room / Screen = `animateAssembly(1 / 0)`, `?view=flat`. If Screen stopped a running
+  simulation (`simPausedByScreen`), Room restarts it. In Screen mode a note beside
   the toggle reads "Screen mode allows direct interaction with the visualization using your mouse."
   (`.gr-note`, faded out in Room mode and left out of the `viewInset.left` measurement). Screen stops the simulation
   (and first person; the camera glides out of first person before the room unfolds), and fades
@@ -65,8 +66,9 @@ visualization palette (`colors.wallSurface` borders, `colors.band[1]` for the ac
 - **Simulate visitors** (header checkbox), with indented sub-controls: number of visitors 1–20;
   View: 3rd person / 1st person (1st person starts the simulation).
 
-**Navigation bar** (`mountNavBar`, centred under the area the camera fit used, `viewInset.bottom`
-reserves its height): [<] [−] [+] [>], "<" ">" only while zoomed in, hidden in first person.
+**Navigation bar** (`mountNavBar`): centred in the window, a sixth of the window height above the
+bottom; `viewInset.bottom` reserves everything below its top edge. [<] [−] [+] [>] as inline SVG
+glyphs (round-capped strokes); "<" ">" only while zoomed in; hidden in first person.
 - Screen mode: + = chromosome 10 (`zoomToChromosome`, as clicking its label); < > = previous /
   next chromosome (`zoomedChrom` is the focus); − = the full view.
 - Room mode: + = a close-up of the back-left corner; < > = neighbouring close-ups (`roomViews`:
@@ -187,6 +189,8 @@ Working:
 - `animate(step, end)`: fits the camera once to `geometry(end)`, then each frame calls `step(e)`,
   `update()`, and sets a view state interpolated from the starting view (including any manual
   orbit) to that fit. Easing is quadratic in-out over `animationMs` (1600).
+- The camera framing includes the flat arc diagram's band under the strip only when floor arcs
+  are drawn (`arcs` floor or drop); bubbles mode leaves it out, so the flat strip fits full width.
 - **Camera fit** (`fitViewState`): our own, not viz_sandbox's `expandTargetViewStateToWorldPoints`
   (which measures the whole window and steps zoom in 0.05 increments). It projects the corner
   points at zoom 0, scales zoom so their screen box fits the free area in `viewInset` (less the

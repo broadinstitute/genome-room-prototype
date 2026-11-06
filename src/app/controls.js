@@ -425,7 +425,7 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
       top: text.bottom + 12,
       left: Math.max(...groups.map((r) => r.right)) + 24,
       headerBottom: header.offsetHeight,
-      bottom: (nav?.offsetHeight ?? 0) + 40, // the navigation bar and its margins
+      bottom: (nav ? window.innerHeight - nav.getBoundingClientRect().top : 0) + 16, // the navigation bar
     };
     requestAnimationFrame(() => _appState.fitCamera());
   };
@@ -441,14 +441,21 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
       setParam("view", room ? null : "flat");
       // Screen: visitors walk a room, so the simulation (and first person) stop. Leaving first
       // person glides the camera back first; unfold once that has finished.
+      // Back to Room: restart the simulation if Screen stopped it.
       const wasFpv = _appState.fpv.on;
       if (!room && _appState.sim.on) {
+        _appState.simPausedByScreen = true;
         _appState.setSimulation(false);
         setParam("fpv", null);
       }
       const go = () => {
         _appState.animateAssembly(room ? 1 : 0);
+        if (room && _appState.simPausedByScreen) {
+          _appState.simPausedByScreen = false;
+          _appState.setSimulation(true);
+        }
         _appState.recordSimParam();
+        _appState.onStateChange();
       };
       if (!room && wasFpv) setTimeout(go, _appState.fpv.transitionMs + 50);
       else go();
@@ -463,6 +470,7 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
     };
   }
   q('[data-main="sim"]').onchange = (e) => {
+    _appState.simPausedByScreen = false;
     _appState.setSimulation(e.target.checked);
     _appState.recordSimParam();
     if (!e.target.checked) setParam("fpv", null);
@@ -523,38 +531,40 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
 }
 
 /**
- * Navigation bar, centred below the visualization: [<] [−] [+] [>]. "<" and ">" show only when
+ * Navigation bar, centred in the window a sixth of its height above the bottom: [<] [−] [+] [>]. "<" and ">" show only when
  * zoomed in. Screen mode steps chromosomes; Room mode steps close-ups along the walls (see the
  * navigation section of GenomeRoomApp). Hidden in first person. Uses the header's .gr-btn style.
  */
 function mountNavBar(root, _appState, refreshers) {
   const nav = document.createElement("div");
   nav.className = "gr-nav";
-  nav.style.cssText = "position:absolute;bottom:20px;transform:translateX(-50%);display:flex;gap:8px;transition:left .5s;";
-  const button = (label, title, onClick) => {
+  nav.style.cssText = "position:absolute;left:50%;bottom:16.667vh;transform:translateX(-50%);display:flex;gap:8px;";
+  // Minimal, chunky glyphs: round-capped strokes in the button's text colour.
+  const svg = (d) =>
+    `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="display:block">${d}</svg>`;
+  const GLYPHS = {
+    prev: svg('<path d="M11 4 L6 9 L11 14"/>'),
+    next: svg('<path d="M7 4 L12 9 L7 14"/>'),
+    out: svg('<path d="M4 9 H14"/>'),
+    in: svg('<path d="M4 9 H14 M9 4 V14"/>'),
+  };
+  const button = (glyph, title, onClick) => {
     const b = document.createElement("button");
     b.className = "gr-btn";
-    b.textContent = label;
+    b.innerHTML = GLYPHS[glyph];
     b.title = title;
-    b.style.cssText = "min-width:38px;font-size:16px;padding:4px 12px;";
+    b.setAttribute("aria-label", title);
+    b.style.cssText = "width:44px;height:38px;padding:0;display:flex;align-items:center;justify-content:center;";
     b.onclick = onClick;
     nav.appendChild(b);
     return b;
   };
-  const prev = button("<", "Previous", () => _appState.navStep(-1));
-  const out = button("−", "Zoom out", () => _appState.navZoomOut());
-  const into = button("+", "Zoom in", () => _appState.navZoomIn());
-  const next = button(">", "Next", () => _appState.navStep(1));
+  const prev = button("prev", "Previous", () => _appState.navStep(-1));
+  const out = button("out", "Zoom out", () => _appState.navZoomOut());
+  const into = button("in", "Zoom in", () => _appState.navZoomIn());
+  const next = button("next", "Next", () => _appState.navStep(1));
   root.appendChild(nav);
 
-  const place = () => {
-    const a = _appState.fitArea;
-    const W = a?.width || window.innerWidth;
-    const left = a?.left ?? 0;
-    nav.style.left = `${left + (W - left) / 2}px`;
-  };
-  _appState.onFitArea = place;
-  place();
 
   refreshers.push(() => {
     const st = _appState.navState();
@@ -564,6 +574,5 @@ function mountNavBar(root, _appState, refreshers) {
     next.disabled = !st.canNext;
     out.disabled = !st.zoomed;
     into.disabled = st.zoomed;
-    place();
   });
 }

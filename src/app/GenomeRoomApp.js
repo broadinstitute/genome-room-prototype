@@ -618,7 +618,9 @@ export class GenomeRoomApp extends DemoApp {
         const L = r.length;
         const ax = _appState.room.width / 2;
         const D = _appState.room.depth;
-        const band = (_appState.layout.flatArcDepth / 2) * L;
+        // The flat arc diagram hangs under the strip; frame its band only when floor arcs are drawn.
+        const floorArcs = _appState.display.arcs === "floor" || _appState.display.arcs === "drop";
+        const band = floorArcs ? (_appState.layout.flatArcDepth / 2) * L : 0;
         const xs = geom.floorOutline.map((p) => p[0]);
         const ys = geom.floorOutline.map((p) => p[1]);
         const flat = [[ax - L / 2, D - band], [ax + L / 2, D]];
