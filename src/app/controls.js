@@ -325,9 +325,9 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
       color:${rgba(c.text, 1)}; font-family:Helvetica,Arial,sans-serif; }
     .gr-title { font-size:34px; font-weight:600; letter-spacing:.3px; line-height:1.1; }
     .gr-subtitle { font-size:15px; margin-top:6px; color:${rgba(c.text, 0.85)}; }
-    .gr-subtitle a { color:inherit; text-decoration:underline; text-decoration-color:${rgba(accent, 0.6)};
+    .gr-subtitle a, .gr-desc a { color:inherit; text-decoration:underline; text-decoration-color:${rgba(accent, 0.6)};
       text-underline-offset:3px; pointer-events:auto; }
-    .gr-subtitle a:hover { text-decoration-color:${rgba(c.text, 1)}; }
+    .gr-subtitle a:hover, .gr-desc a:hover { text-decoration-color:${rgba(c.text, 1)}; }
     .gr-desc { font-size:13px; line-height:1.5; margin-top:8px; color:${rgba(c.text, 0.62)}; max-width:760px; }
     .gr-controls { display:flex; flex-direction:column; gap:20px; font-size:13px; }
     .gr-group { display:flex; flex-direction:row; align-items:flex-start; gap:12px; pointer-events:auto; align-self:flex-start; }
@@ -375,7 +375,7 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
       <div class="gr-desc">Images are projected across the walls and floor, and laser (lidar) tracking follows where
         each visitor stands. The human genome runs around the walls at head height. Linger in front of a region and
         the traits linked to it there open above it; when several people stand at regions that share a trait, the
-        room connects them. Trait data: GWAS Catalog.</div>
+        room connects them. Trait data: <a href="https://www.ebi.ac.uk/gwas/" target="_blank" rel="noopener">GWAS Catalog</a>.</div>
     </div>
     <div class="gr-controls">
       <div class="gr-group">
