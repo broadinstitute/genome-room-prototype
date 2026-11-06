@@ -221,9 +221,18 @@ function entrance(_appState) {
   return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u + 0.5];
 }
 
+const assembled = (_appState) => _appState.assembly >= 0.999 && _appState.ribbon;
+
 export function setVisitorCount(_appState, n) {
   const { sim } = _appState;
   sim.count = n;
+  // Entrances and targets come from the room geometry (floor outline, wall points), which is only
+  // the room's once it has finished assembling: spawning earlier — e.g. right after leaving
+  // Screen mode — placed visitors by the flat strip, and some walked outside the room.
+  if (!assembled(_appState)) {
+    sim.pendingSpawn = true;
+    return;
+  }
   while (sim.visitors.length > n) {
     const v = sim.visitors.pop();
     if (v.active) setClusterFocus(_appState, owner(v), null);
@@ -247,8 +256,14 @@ export function startSimulation(_appState) {
     if (!sim.on) return;
     const dt = Math.min(0.1, Math.max(0, (now - sim.last) / 1000)) * sim.speed; // sim seconds
     sim.last = now;
-    // Walls only stand still once the room is assembled; before that, wait.
-    if (_appState.assembly >= 0.999 && _appState.ribbon) step(_appState, dt);
+    // Walls only stand still once the room is assembled; before that, wait (and spawn then).
+    if (assembled(_appState)) {
+      if (sim.pendingSpawn) {
+        sim.pendingSpawn = false;
+        setVisitorCount(_appState, sim.count);
+      }
+      step(_appState, dt);
+    }
     drawVisitors(_appState);
     _appState.onSimFrame?.();
     if (now - sim.uiLast > 250) {
@@ -265,6 +280,7 @@ export function stopSimulation(_appState) {
   const { sim } = _appState;
   if (!sim.on) return;
   sim.on = false;
+  sim.pendingSpawn = false;
   cancelAnimationFrame(sim.raf);
   for (const v of sim.visitors) if (v.active) setClusterFocus(_appState, owner(v), null);
   sim.visitors = [];

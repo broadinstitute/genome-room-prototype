@@ -316,6 +316,9 @@ wander biased toward hint ticks; toggle + count + speed.
 - **Linked holds**: when a visitor starts dwelling at a region sharing a shown trait with another
   dweller's region, both hold for at least `linkedHoldMs` 6 s from then (`holdUntil`). With
   "hundreds" shown, height links nearly every pair, so holds are common.
+- **Spawning waits for the assembled room** (`sim.pendingSpawn`): entrances and targets come from
+  the floor outline and wall points, so visitors created mid-fold (e.g. Room right after Screen
+  restarts the simulation) were placed by the flat strip and some walked outside the room.
 - **Tier changes** (`onTiersChanged`): visitors heading to a region that lost its shown hits pick
   a new target; visitors dwelling at one move on.
 - **Detection** (stands in for tracking — reads positions only, never targets): nearest wall
