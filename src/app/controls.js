@@ -351,6 +351,8 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
       border-radius:4px; padding:5px 12px; font:13px Helvetica,Arial,sans-serif; cursor:pointer; }
     .gr-btn:hover { color:${rgba(c.text, 1)}; background:${rgba(accent, 0.1)}; }
     .gr-btn.on { background:${rgba(c.band[1], 0.45)}; color:${rgba(c.text, 1)}; }
+    .gr-note { align-self:center; color:${rgba(c.text, 0.6)}; transition:opacity .3s; }
+    .gr-note.off { opacity:0; }
     .gr-room-only { transition:opacity .3s; }
     .gr-room-only.off { opacity:.28; pointer-events:none; } /* Screen mode: room-only controls */
     .gr-header input[type=range] { accent-color:${rgba(c.band[1], 1)}; }
@@ -376,6 +378,7 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
       <div class="gr-group">
         <div class="gr-head">Mode</div>
         <div class="gr-seg"><button data-main-mode="room">Room</button><button data-main-mode="screen">Screen</button></div>
+        <div data-main="modeNote" class="gr-note">Screen mode allows direct interaction with the visualization using your mouse.</div>
       </div>
       <div class="gr-group">
         <div class="gr-head">Trait density</div>
@@ -409,7 +412,11 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
   // window too narrow for that, below the whole header.
   const layout = () => {
     const text = header.firstElementChild.getBoundingClientRect();
-    const groups = [...header.querySelectorAll(".gr-group")].map((g) => g.getBoundingClientRect());
+    // Right edge of the control column, ignoring the Screen-mode note beside the Mode toggle
+    // (it is faded out, but still takes space, in Room mode).
+    const groups = [...header.querySelectorAll(".gr-group")].flatMap((g) =>
+      [...g.children].filter((el) => !el.classList.contains("gr-note")).map((el) => el.getBoundingClientRect()),
+    );
     _appState.viewInset = {
       top: text.bottom + 12,
       left: Math.max(...groups.map((r) => r.right)) + 24,
@@ -493,6 +500,7 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
     const assembled = (_appState.assemblyTarget ?? _appState.assembly) >= 0.5;
     for (const b of modeButtons) b.classList.toggle("on", (b.dataset.mainMode === "room") === assembled);
     for (const g of header.querySelectorAll(".gr-room-only")) g.classList.toggle("off", !assembled);
+    q('[data-main="modeNote"]').classList.toggle("off", assembled); // shown in Screen mode only
     for (const b of shapeButtons) b.classList.toggle("on", b.dataset.mainShape === _appState.shapeName);
     q('[data-main="sim"]').checked = _appState.sim.on;
     q('[data-main="visitors"]').value = _appState.sim.count;

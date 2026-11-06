@@ -44,7 +44,9 @@ Museum of Science), the description (projection on
 walls and floor, lidar tracking, linger to open traits, shared traits connect people), then one
 row per control group (label column, controls to its right), as segmented toggles styled from the
 visualization palette (`colors.wallSurface` borders, `colors.band[1]` for the active segment):
-- **Mode**: Room / Screen = `animateAssembly(1 / 0)`, `?view=flat`. Screen stops the simulation
+- **Mode**: Room / Screen = `animateAssembly(1 / 0)`, `?view=flat`. In Screen mode a note beside
+  the toggle reads "Screen mode allows direct interaction with the visualization using your mouse."
+  (`.gr-note`, faded out in Room mode and left out of the `viewInset.left` measurement). Screen stops the simulation
   (and first person; the camera glides out of first person before the room unfolds), and fades
   the room-only groups (Room shape, Simulate visitors: class `gr-room-only`, no pointer events).
   In Screen mode, clicking a chromosome label (`columnAxisLabelLayerClickFn` override) animates
