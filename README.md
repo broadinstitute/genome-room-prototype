@@ -67,8 +67,8 @@ A transparent **header** over the full-window visualization: title, subtitle (th
 Electronica's Deep Space projection system at the Boston Museum of Science), description, and the
 exhibit controls, one row each:
 - **Mode**: Room (assembled) / Screen (the unfolded strip). Screen stops the simulation.
-- **Room shape**: Square / Rounded / Arc.
 - **Trait density**: Low / Medium / High (traits in up to a few / dozens / hundreds of regions).
+- **Room shape**: Square / Rounded / Arc.
 - **Simulate visitors**: on/off, number of visitors, View: 3rd person / 1st person.
 
 The camera frames the room in the space the header leaves free. **Bottom right**, a collapsed

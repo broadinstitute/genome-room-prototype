@@ -49,13 +49,17 @@ visualization palette (`colors.wallSurface` borders, `colors.band[1]` for the ac
   the room-only groups (Room shape, Simulate visitors: class `gr-room-only`, no pointer events).
   In Screen mode, clicking a chromosome label (`columnAxisLabelLayerClickFn` override) animates
   the camera to that chromosome (`zoomToChromosome` → `fitPoints` on its span, from
-  `chromZoomBelow` 0.7 m under the band to `chromZoomAbove` 2 m above, `animateCamera`); clicking
-  it again zooms back out. Heatmap click selection and selection label resizing are off
+  `chromZoomBelow` 0.7 m under the band to `chromZoomAbove` 2 m above, margin `chromZoomPadding`
+  0.45, `animateCamera`); clicking it again zooms back out. The hovered label grows
+  `chromLabelHoverScale` 1.25× (Screen mode only). `animateCamera` scales about the fixed point
+  F = (T0·k0 − T1·k1)/(k0 − k1), k = 2^zoom, with k interpolated geometrically, so every point
+  moves in a straight line on screen (measured: 0.8 px off straight over 344 px); interpolating
+  target and zoom separately swooped (zoom flung content outward before the pan caught up). Heatmap click selection and selection label resizing are off
   (`enableCellClickSelectsRow`, `resizeLabelsOnSelection`): a cell click used to select the band
   row and grow every chromosome label 2.5×.
-- **Room shape**: Square / Rounded / Arc (the `room` profile's label is "Square"; `?shape=room`).
 - **Trait density**: Low / Medium / High = the 1, 2 or 3 rarest tiers via `setTiers` ("Custom" if
   the Debug legend leaves a gap).
+- **Room shape**: Square / Rounded / Arc (the `room` profile's label is "Square"; `?shape=room`).
 - **Simulate visitors** (header checkbox), with indented sub-controls: number of visitors 1–20;
   View: 3rd person / 1st person (1st person starts the simulation).
 

@@ -105,6 +105,20 @@ export function makeStripViz(containerId, deckManager, bins, traits, layout, _ap
   viz.columnAxisLabelLayerClickFn = (info) => {
     if (info?.object) _appState.zoomToChromosome(info.object.index);
   };
+  // Hovered chromosome label grows slightly in Screen mode (where it is clickable). The label
+  // layer's data is re-filtered into a new array on every regeneration, so redrawing it re-runs
+  // getSize.
+  const baseLabelSize = viz.getColumnAxisLabelSize.bind(viz);
+  let hoveredLabel = null;
+  viz.getColumnAxisLabelSize = (d) =>
+    baseLabelSize(d) * (d.index === hoveredLabel ? _appState.layout.chromLabelHoverScale : 1);
+  viz.columnAxisLabelHoverFn = (info) => {
+    const screen = (_appState.assemblyTarget ?? _appState.assembly) < 0.5;
+    const index = screen ? (info?.object?.index ?? null) : null;
+    if (index === hoveredLabel) return;
+    hoveredLabel = index;
+    viz.updatePlot([{ id: "columnAxisLabelLayer" }]);
+  };
   viz.getHeatMapFillColor = (d) => _appState.cellColor(d);
   viz.appState.columnAxisLabelTextAngle = 0;
   if (layout.bubbles && layout.bubbleSide === "above") {

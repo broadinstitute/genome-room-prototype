@@ -124,6 +124,8 @@ export class GenomeRoomApp extends DemoApp {
         columnLabelGap: 0.06, // band edge to the near edge of the chromosome labels
         chromZoomBelow: 0.7, // chromosome zoom frames from this far under the band (labels)
         chromZoomAbove: 2.0, // to this far above it (most of a bubble cluster; width usually governs)
+        chromZoomPadding: 0.45, // zoom margin (log2) around the chromosome
+        chromLabelHoverScale: 1.25, // Screen mode: hovered chromosome label grows (a click target)
         rowLabelMargin: 3.2, // start of the strip, reserved for trait row labels (set to stripSideMargin without them)
         stripSideMargin: 1.6, // trait rows hidden (no row labels): this much padding at both ends
         stripEndMargin: 0, // derived: padding after the last bin
@@ -713,24 +715,46 @@ export class GenomeRoomApp extends DemoApp {
         const points = [];
         for (const sv of [s0, s1]) for (const tv of [t0, t1]) points.push(ribbonPoint(_appState.ribbon, sv, tv).point);
         const { flatRotationX } = _appState.camera;
-        const to = _appState.fitPoints(points, { rotationX: flatRotationX, rotationOrbit: 0 }, { padding: 0.15 });
+        const to = _appState.fitPoints(points, { rotationX: flatRotationX, rotationOrbit: 0 }, { padding: _appState.layout.chromZoomPadding });
         _appState.animateCamera(to);
         _appState.zoomedChrom = chrom;
       },
-      // Ease the orbit camera from where it is to `to` (no geometry change).
+      // Ease the orbit camera from where it is to `to` (no geometry change). With the angles
+      // unchanged, the two views differ by a pure scale about one fixed world point F (same pixel
+      // in both): F = (T0·k0 − T1·k1) / (k0 − k1), k = 2^zoom. Scaling about F with k interpolated
+      // geometrically moves every point in a straight line on screen. Interpolating target and
+      // zoom independently instead "swoops": early on the zoom flings content outward faster than
+      // the pan brings the target in. Angle changes fall back to independent interpolation.
       animateCamera: (to, ms = 900) => {
         cancelAnimationFrame(_appState._camRaf);
         const from = _appState.currentViewState();
         const dOrbit = ((((to.rotationOrbit - from.rotationOrbit) % 360) + 540) % 360) - 180;
+        const sameAngles = Math.abs(dOrbit) < 1e-3 && Math.abs(to.rotationX - from.rotationX) < 1e-3;
+        const k0 = Math.pow(2, from.zoom);
+        const k1 = Math.pow(2, to.zoom);
+        const T0 = [0, 1, 2].map((i) => from.target[i] ?? 0);
+        const T1 = [0, 1, 2].map((i) => to.target[i] ?? 0);
+        const scales = Math.abs(k1 - k0) > 1e-6 * k0;
+        const F = scales ? T0.map((t, i) => (t * k0 - T1[i] * k1) / (k0 - k1)) : null;
         const t0 = performance.now();
         const frame = (now) => {
           const k = Math.min(1, (now - t0) / ms);
           const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+          let target;
+          let zoom;
+          if (sameAngles && scales) {
+            const ke = k0 * Math.pow(k1 / k0, e);
+            target = F.map((f, i) => f - (f - T0[i]) * (k0 / ke));
+            zoom = Math.log2(ke);
+          } else {
+            target = T0.map((t, i) => lerp(t, T1[i], e));
+            zoom = lerp(from.zoom, to.zoom, e);
+          }
           if (!_appState.fpv.on) {
             _appState.vizDeckManager.setViewState({
               ...to,
-              target: [0, 1, 2].map((i) => lerp(from.target[i] ?? 0, to.target[i] ?? 0, e)),
-              zoom: lerp(from.zoom, to.zoom, e),
+              target,
+              zoom,
               rotationX: lerp(from.rotationX, to.rotationX, e),
               rotationOrbit: from.rotationOrbit + dOrbit * e,
             });

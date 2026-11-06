@@ -377,16 +377,16 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
         <div class="gr-head">Mode</div>
         <div class="gr-seg"><button data-main-mode="room">Room</button><button data-main-mode="screen">Screen</button></div>
       </div>
-      <div class="gr-group gr-room-only">
-        <div class="gr-head">Room shape</div>
-        <div class="gr-seg">${shapes.map((s) => `<button data-main-shape="${s}">${_appState.profiles[s].label}</button>`).join("")}</div>
-      </div>
       <div class="gr-group">
         <div class="gr-head">Trait density</div>
         <div style="display:flex;flex-direction:column;gap:5px">
           <div class="gr-seg" style="align-self:flex-start">${densities.map(([label, n]) => `<button data-main-density="${n}">${label}</button>`).join("")}</div>
           <div data-main="densityValue" style="opacity:.6"></div>
         </div>
+      </div>
+      <div class="gr-group gr-room-only">
+        <div class="gr-head">Room shape</div>
+        <div class="gr-seg">${shapes.map((s) => `<button data-main-shape="${s}">${_appState.profiles[s].label}</button>`).join("")}</div>
       </div>
       <div class="gr-group gr-col gr-room-only">
         <label class="gr-head"><input data-main="sim" type="checkbox" /> Simulate visitors</label>
