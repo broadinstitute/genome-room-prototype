@@ -351,7 +351,7 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
       border-radius:4px; padding:5px 12px; font:13px Helvetica,Arial,sans-serif; cursor:pointer; }
     .gr-btn:hover { color:${rgba(c.text, 1)}; background:${rgba(accent, 0.1)}; }
     .gr-btn.on { background:${rgba(c.band[1], 0.45)}; color:${rgba(c.text, 1)}; }
-    .gr-note { align-self:center; color:${rgba(c.text, 0.6)}; transition:opacity .3s; }
+    .gr-note { align-self:center; color:${rgba(c.band[1], 1)}; transition:opacity .3s; } /* the lighter chromosome band */
     .gr-note.off { opacity:0; }
     .gr-room-only { transition:opacity .3s; }
     .gr-room-only.off { opacity:.28; pointer-events:none; } /* Screen mode: room-only controls */
