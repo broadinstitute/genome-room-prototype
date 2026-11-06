@@ -67,7 +67,7 @@ visualization palette (`colors.wallSurface` borders, `colors.band[1]` for the ac
 - **Simulate visitors** (header checkbox), with indented sub-controls: number of visitors 1–20;
   View: 3rd person / 1st person (1st person starts the simulation).
 
-**Navigation bar** (`mountNavBar`): centred in the window, a sixth of the window height above the
+**Navigation bar** (`mountNavBar`): centred in the window, 9% of the window height above the
 bottom, over the visualization (the camera framing does not reserve space for it). [<] [−] [+] [>] as inline SVG
 glyphs (round-capped strokes); "<" ">" only while zoomed in; hidden in first person.
 - Screen mode: + = chromosome 10 (`zoomToChromosome`, as clicking its label); < > = previous /

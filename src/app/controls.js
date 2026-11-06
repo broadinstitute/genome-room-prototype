@@ -529,14 +529,14 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
 }
 
 /**
- * Navigation bar, centred in the window a sixth of its height above the bottom: [<] [−] [+] [>]. "<" and ">" show only when
+ * Navigation bar, centred in the window 9% of its height above the bottom: [<] [−] [+] [>]. "<" and ">" show only when
  * zoomed in. Screen mode steps chromosomes; Room mode steps close-ups along the walls (see the
  * navigation section of GenomeRoomApp). Hidden in first person. Uses the header's .gr-btn style.
  */
 function mountNavBar(root, _appState, refreshers) {
   const nav = document.createElement("div");
   nav.className = "gr-nav";
-  nav.style.cssText = "position:absolute;left:50%;bottom:16.667vh;transform:translateX(-50%);display:flex;gap:8px;";
+  nav.style.cssText = "position:absolute;left:50%;bottom:9vh;transform:translateX(-50%);display:flex;gap:8px;";
   // Minimal, chunky glyphs: round-capped strokes in the button's text colour.
   const svg = (d) =>
     `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="display:block">${d}</svg>`;
