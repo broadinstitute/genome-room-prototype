@@ -918,6 +918,7 @@ export class GenomeRoomApp extends DemoApp {
         let to = _appState.fitViewState(endGeometry, endK);
         const dOrbit = ((((to.rotationOrbit - from.rotationOrbit) % 360) + 540) % 360) - 180; // shortest way round
         const t0 = performance.now();
+        _appState.animating = true;
         const frame = (now) => {
           const k = Math.min(1, (now - t0) / _appState.animationMs);
           const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
@@ -933,6 +934,7 @@ export class GenomeRoomApp extends DemoApp {
           });
           _appState.onStateChange?.();
           if (k < 1) _appState._raf = requestAnimationFrame(frame);
+          else _appState.animating = false;
         };
         _appState._raf = requestAnimationFrame(frame);
       },

@@ -198,7 +198,9 @@ Working:
   `screenFrameAbove` 3.5 m above it — and the flat arc diagram's band under the strip only when
   floor arcs are drawn; trait-tracks mode still frames the full strip. Zoom margin
   `camera.padding` 0.12. Animations re-fit their end state every frame, since a mode switch
-  resizes the header a frame after it starts.
+  resizes the header a frame after it starts. The header `ResizeObserver` skips its own
+  `fitCamera` while `_appState.animating`: fitting the half-way layout set the camera for one
+  frame before the animation reset it, a visible jump on Screen → Room.
 - **Camera fit** (`fitViewState`): our own, not viz_sandbox's `expandTargetViewStateToWorldPoints`
   (which measures the whole window and steps zoom in 0.05 increments). It projects the corner
   points at zoom 0, scales zoom so their screen box fits the free area in `viewInset` (less the

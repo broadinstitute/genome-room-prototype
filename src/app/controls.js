@@ -425,7 +425,11 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
       left: Math.max(...groups.map((r) => r.right)) + 24,
       headerBottom: header.offsetHeight,
     };
-    requestAnimationFrame(() => _appState.fitCamera());
+    // A running mode animation re-fits its end framing every frame with this inset; fitting here
+    // too would snap the camera to the current (half-way) layout for one frame.
+    requestAnimationFrame(() => {
+      if (!_appState.animating) _appState.fitCamera();
+    });
   };
   // Header height can settle after mount (fonts, wrapping) and changes with the window width.
   new ResizeObserver(layout).observe(header);
