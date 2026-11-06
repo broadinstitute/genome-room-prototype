@@ -374,7 +374,7 @@ function runBubbleLoop(_appState) {
       for (const q of placed) {
         const a = clamp01((q.p - 0.5) / 0.5);
         if (a <= 0) continue;
-        const color = [...q.b.color, Math.round(layout.faintArcAlpha * a)];
+        const color = [...q.b.color, Math.round(faintAlpha(_appState) * a)];
         for (const { bin } of q.b.ticks) {
           if (openBins.has(bin)) continue;
           const A = tickEnd(q, bin, layout.linkTickLength, layout);
@@ -414,6 +414,15 @@ function runBubbleLoop(_appState) {
 function arcSegments(_appState) {
   const screen = (_appState.assemblyTarget ?? _appState.assembly) < 0.5;
   return screen ? { faint: 0.12, faintMax: 160, shared: 0.08 } : { faint: 0.5, faintMax: 40, shared: 0.2 };
+}
+
+/**
+ * Faint-arc opacity (of 255). Screen mode has one (mouse) cluster, so its arcs never become shared
+ * links; draw them more opaque there.
+ */
+function faintAlpha(_appState) {
+  const screen = (_appState.assemblyTarget ?? _appState.assembly) < 0.5;
+  return screen ? _appState.layout.faintArcAlphaScreen : _appState.layout.faintArcAlpha;
 }
 
 /** End of a link at the tip of bubble q's tick toward `otherBin` (or its far side if none). */
@@ -486,7 +495,8 @@ function sharedLinkQuads(quads, a, b, f, _appState) {
     const len = Math.hypot(dx, dy) || 1;
     B = { p: [band.p[0] + (B.p[0] - band.p[0]) * f, band.p[1] + (B.p[1] - band.p[1]) * f], dir: [dx / len, dy / len] };
     draw = 1;
-    alpha = Math.round(layout.faintArcAlpha + (220 - layout.faintArcAlpha) * f);
+    const fa = faintAlpha(_appState);
+    alpha = Math.round(fa + (220 - fa) * f);
   }
   const span = Math.hypot(B.p[0] - A.p[0], B.p[1] - A.p[1]);
   const pts = cubicPoints(A, B, draw, Math.max(16, Math.ceil((span * 1.4) / arcSegments(_appState).shared)), _appState);

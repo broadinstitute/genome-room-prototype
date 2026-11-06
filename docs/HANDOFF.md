@@ -351,7 +351,8 @@ wander biased toward hint ticks; toggle + count + speed.
 - **Link styles** (`display.bubbleLinks`, `?links=ticks|arcs`, the Links buttons, live):
   - `ticks`: ticks, plus arcs only between open clusters, growing as the second
     bubble appears.
-  - `arcs` (default): also a faint arc (`faintArcAlpha` 26/255, `faintArcWidth` 0.012 m) from every tick to
+  - `arcs` (default): also a faint arc (`faintArcAlpha` 26/255 in Room mode, `faintArcAlphaScreen`
+    110 in Screen mode, where the single cluster never gets shared links; `faintArcWidth` 0.012 m) from every tick to
     its region on the band, arriving straight in. When that region's cluster opens, the arc
     shifts: its far end slides from the band to the new bubble's tick and it brightens to a full
     shared link, by the new bubble's entrance progress (and back when either closes). Faint arcs

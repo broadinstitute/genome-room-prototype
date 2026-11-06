@@ -185,7 +185,8 @@ export class GenomeRoomApp extends DemoApp {
         linkTickLength: 0.05,
         linkTickOpenLength: 0.11, // ticks aimed at another open cluster's region
         linkTickWidth: 0.01,
-        faintArcAlpha: 26, // arcs mode: tick → region arcs, out of 255
+        faintArcAlpha: 26, // arcs mode: tick → region arcs, out of 255 (Room mode)
+        faintArcAlphaScreen: 110, // Screen mode: one cluster, so no shared links — more opaque
         faintArcWidth: 0.012, // m
         sharedLinkWidth: 0.03, // link between same-trait bubbles in different clusters
         sharedLinkHandle: 0.35, // cubic handle length along each end's tick, × distance between ends
