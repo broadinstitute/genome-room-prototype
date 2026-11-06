@@ -198,7 +198,16 @@ const RIBBON_INJECT = {
     vec3 ribbon_mapped = ribbon_map(ribbon_world, ribbon_normal);
     vec4 ribbon_common = vec4((ribbon_mapped - project.coordinateOrigin) * project.commonUnitsPerWorldUnit, 1.0);
     position = project_common_position_to_clipspace(ribbon_common);
-    ribbon_facing = dot(ribbon_normal, normalize(project.cameraPosition - ribbon_common.xyz));
+    // Facing the camera? Perspective: toward the camera position. Orthographic (w row of the
+    // view-projection matrix is zero): toward the camera is minus the depth gradient (its z row).
+    // deck's cameraPosition for an orthographic view sits next to the target, which can lie
+    // beyond a wall (room close-ups), so it would read that wall as back-facing.
+    mat4 ribbon_vp = project.viewProjectionMatrix;
+    bool ribbon_ortho = abs(ribbon_vp[0][3]) + abs(ribbon_vp[1][3]) + abs(ribbon_vp[2][3]) < 1e-9;
+    vec3 ribbon_toCamera = ribbon_ortho
+      ? -vec3(ribbon_vp[0][2], ribbon_vp[1][2], ribbon_vp[2][2])
+      : project.cameraPosition - ribbon_common.xyz;
+    ribbon_facing = dot(ribbon_normal, normalize(ribbon_toCamera));
   `,
   "fs:#decl": "in float ribbon_facing;",
   // Dollhouse cutaway: surface seen from behind fades.

@@ -39,6 +39,7 @@ export function mountControls(parent, _appState) {
     setParam("tiers", keys.join(",") === _appState.defaultTiers.join(",") ? null : keys.join(",") || "none");
   };
 
+  mountNavBar(root, _appState, refreshers);
   mountMainPanel(root, _appState, refreshers, setParam);
 
   // ---- bottom-left: Pattern logo, linking to the Pattern site ---------------------------------
@@ -351,6 +352,8 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
       border-radius:4px; padding:5px 12px; font:13px Helvetica,Arial,sans-serif; cursor:pointer; }
     .gr-btn:hover { color:${rgba(c.text, 1)}; background:${rgba(accent, 0.1)}; }
     .gr-btn.on { background:${rgba(c.band[1], 0.45)}; color:${rgba(c.text, 1)}; }
+    .gr-btn:disabled { opacity:.35; cursor:default; }
+    .gr-btn:disabled:hover { color:${rgba(c.text, 0.75)}; background:${rgba(c.background, 0.9)}; }
     .gr-note { align-self:center; color:${rgba(c.band[1], 1)}; transition:opacity .3s; } /* the lighter chromosome band */
     .gr-note.off { opacity:0; }
     .gr-room-only { transition:opacity .3s; }
@@ -417,10 +420,12 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
     const groups = [...header.querySelectorAll(".gr-group")].flatMap((g) =>
       [...g.children].filter((el) => !el.classList.contains("gr-note")).map((el) => el.getBoundingClientRect()),
     );
+    const nav = document.querySelector(".gr-nav");
     _appState.viewInset = {
       top: text.bottom + 12,
       left: Math.max(...groups.map((r) => r.right)) + 24,
       headerBottom: header.offsetHeight,
+      bottom: (nav?.offsetHeight ?? 0) + 40, // the navigation bar and its margins
     };
     requestAnimationFrame(() => _appState.fitCamera());
   };
@@ -514,5 +519,51 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
     q('[data-main="densityValue"]').textContent = exact && n
       ? `Traits in up to ${["a few", "dozens of", "hundreds of"][n - 1]} regions`
       : "Custom (see Debug)";
+  });
+}
+
+/**
+ * Navigation bar, centred below the visualization: [<] [−] [+] [>]. "<" and ">" show only when
+ * zoomed in. Screen mode steps chromosomes; Room mode steps close-ups along the walls (see the
+ * navigation section of GenomeRoomApp). Hidden in first person. Uses the header's .gr-btn style.
+ */
+function mountNavBar(root, _appState, refreshers) {
+  const nav = document.createElement("div");
+  nav.className = "gr-nav";
+  nav.style.cssText = "position:absolute;bottom:20px;transform:translateX(-50%);display:flex;gap:8px;transition:left .5s;";
+  const button = (label, title, onClick) => {
+    const b = document.createElement("button");
+    b.className = "gr-btn";
+    b.textContent = label;
+    b.title = title;
+    b.style.cssText = "min-width:38px;font-size:16px;padding:4px 12px;";
+    b.onclick = onClick;
+    nav.appendChild(b);
+    return b;
+  };
+  const prev = button("<", "Previous", () => _appState.navStep(-1));
+  const out = button("−", "Zoom out", () => _appState.navZoomOut());
+  const into = button("+", "Zoom in", () => _appState.navZoomIn());
+  const next = button(">", "Next", () => _appState.navStep(1));
+  root.appendChild(nav);
+
+  const place = () => {
+    const a = _appState.fitArea;
+    const W = a?.width || window.innerWidth;
+    const left = a?.left ?? 0;
+    nav.style.left = `${left + (W - left) / 2}px`;
+  };
+  _appState.onFitArea = place;
+  place();
+
+  refreshers.push(() => {
+    const st = _appState.navState();
+    nav.style.display = _appState.fpv.on ? "none" : "flex";
+    for (const b of [prev, next]) b.style.visibility = st.zoomed ? "visible" : "hidden";
+    prev.disabled = !st.canPrev;
+    next.disabled = !st.canNext;
+    out.disabled = !st.zoomed;
+    into.disabled = st.zoomed;
+    place();
   });
 }

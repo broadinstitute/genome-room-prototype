@@ -126,6 +126,12 @@ export class GenomeRoomApp extends DemoApp {
         chromZoomAbove: 2.0, // to this far above it (most of a bubble cluster; width usually governs)
         chromZoomPadding: 0.45, // zoom margin (log2) around the chromosome
         chromLabelHoverScale: 1.25, // Screen mode: hovered chromosome label grows (a click target)
+        // Room close-ups (navigation bar): wall span either side of the view's centre, height above
+        // the band, camera tilt, and an oblique turn so the wall does not read flat.
+        roomViewHalfWidth: 4.5,
+        roomViewAbove: 2.5,
+        roomViewRotationX: 16,
+        roomViewOblique: 14,
         rowLabelMargin: 3.2, // start of the strip, reserved for trait row labels (set to stripSideMargin without them)
         stripSideMargin: 1.6, // trait rows hidden (no row labels): this much padding at both ends
         stripEndMargin: 0, // derived: padding after the last bin
@@ -662,8 +668,11 @@ export class GenomeRoomApp extends DemoApp {
           { left: inset?.left ?? 0, top: inset?.top ?? 0 },
           { left: 0, top: inset?.headerBottom ?? 0 },
         ].map((a) => ({ left: Math.min(W * 0.6, a.left), top: Math.min(H * 0.6, a.top) }));
-        const fitScale = (a) => Math.min((W - a.left) / (bx[1] - bx[0] || 1), (H - a.top) / (by[1] - by[0] || 1));
+        const bottom = Math.min(H * 0.3, inset?.bottom ?? 0); // the navigation bar
+        const fitScale = (a) => Math.min((W - a.left) / (bx[1] - bx[0] || 1), (H - a.top - bottom) / (by[1] - by[0] || 1));
         const { left, top } = fitScale(areas[0]) >= fitScale(areas[1]) ? areas[0] : areas[1];
+        _appState.fitArea = { left, top, bottom, width: W }; // the navigation bar centres under it
+        _appState.onFitArea?.();
         const scale = fitScale({ left, top });
         const zoom = Math.log2(scale) - padding;
         const s = Math.pow(2, zoom);
@@ -671,7 +680,7 @@ export class GenomeRoomApp extends DemoApp {
         const cx = W / 2 + ((bx[0] + bx[1]) / 2 - W / 2) * s;
         const cy = H / 2 + ((by[0] + by[1]) / 2 - H / 2) * s;
         const dx = left + (W - left) / 2 - cx;
-        const dy = top + (H - top) / 2 - cy;
+        const dy = top + (H - top - bottom) / 2 - cy;
         // New target: the floor point (z = 0) on the line of sight through the pixel that must
         // become the screen centre. OrbitViewport.unproject ignores targetZ and returns a point
         // at the target's depth, so slide it along the view direction (cos rx·sin ro,
@@ -687,6 +696,7 @@ export class GenomeRoomApp extends DemoApp {
       fitCamera: (options) => {
         if (_appState.fpv.on) return null; // the first-person view owns the camera
         _appState.zoomedChrom = null;
+        _appState.roomView = null;
         const fitted = _appState.fitViewState(_appState, _appState.assembly, options);
         _appState.vizDeckManager.setViewState(fitted);
         return fitted;
@@ -695,14 +705,13 @@ export class GenomeRoomApp extends DemoApp {
       // Clicking a chromosome label frames that chromosome: its span along the strip, from just
       // under the band (labels) to the bubble zone above it. Clicking it again zooms back out.
       zoomedChrom: null,
-      zoomToChromosome: (binIndex) => {
+      zoomToChromosome: (binIndex, { toggle = true } = {}) => {
         if ((_appState.assemblyTarget ?? _appState.assembly) >= 0.5 || _appState.fpv.on || !_appState.ribbon) return;
         const chrom = _appState.bins[binIndex]?.chrom;
         if (chrom == null) return;
         if (_appState.zoomedChrom === chrom) {
-          const out = _appState.fitViewState();
-          _appState.animateCamera(out);
-          _appState.zoomedChrom = null;
+          if (!toggle) return;
+          _appState.navZoomOut();
           return;
         }
         const inChrom = _appState.bins.filter((b) => b.chrom === chrom);
@@ -718,6 +727,79 @@ export class GenomeRoomApp extends DemoApp {
         const to = _appState.fitPoints(points, { rotationX: flatRotationX, rotationOrbit: 0 }, { padding: _appState.layout.chromZoomPadding });
         _appState.animateCamera(to);
         _appState.zoomedChrom = chrom;
+        _appState.onStateChange?.();
+      },
+
+      // ---- navigation bar ---------------------------------------------------------------------
+      // Screen mode: + = chromosome 10 (as clicking its label), − = full view, < > = the previous /
+      // next chromosome. Room mode: + = a close-up of the back-left corner, < > = neighbouring
+      // close-ups along the walls (roomViews), − = the default view.
+      roomView: null, // index into roomViews() while zoomed in (Room mode)
+      chromosomes: () => [...new Set(_appState.bins.map((b) => b.chrom))],
+      firstBinOf: (chrom) => _appState.bins.find((b) => b.chrom === chrom)?.index,
+      isScreen: () => (_appState.assemblyTarget ?? _appState.assembly) < 0.5,
+      // Room close-ups: the middle of each centerline segment (left wall, back-left corner, back
+      // wall, back-right corner, right wall), seen from inside the room at a slight angle.
+      roomViews: () => _appState.ribbon.segs.map((seg, i, segs) => {
+        const end = i + 1 < segs.length ? segs[i + 1].s0 : _appState.ribbon.length;
+        return (seg.s0 + end) / 2;
+      }),
+      roomViewState: (index) => {
+        const { layout, ribbon } = _appState;
+        const L = ribbon.length;
+        const s = _appState.roomViews()[index];
+        const { h } = centerAt(ribbon.segs, s);
+        // Looking at the wall from inside: along −(inward normal) = (−sin h, cos h); as an orbit
+        // bearing (deg clockwise from +y) that is −h, plus a slight oblique turn.
+        const rotationOrbit = (-h * 180) / Math.PI + layout.roomViewOblique;
+        const t1 = _appState.stripPlotBottom + _appState.stripPlotHeight + layout.roomViewAbove;
+        const points = [];
+        for (const sv of [Math.max(0, s - layout.roomViewHalfWidth), s, Math.min(L, s + layout.roomViewHalfWidth)]) {
+          for (const tv of [0, t1]) points.push(ribbonPoint(ribbon, sv, tv).point);
+        }
+        return _appState.fitPoints(points, { rotationX: layout.roomViewRotationX, rotationOrbit }, { padding: 0.15 });
+      },
+      navState: () => {
+        const screen = _appState.isScreen();
+        if (screen) {
+          const chroms = _appState.chromosomes();
+          const i = chroms.indexOf(_appState.zoomedChrom);
+          return { zoomed: i >= 0, canPrev: i > 0, canNext: i >= 0 && i < chroms.length - 1 };
+        }
+        const n = _appState.ribbon ? _appState.roomViews().length : 0;
+        const i = _appState.roomView;
+        return { zoomed: i != null, canPrev: i != null && i > 0, canNext: i != null && i < n - 1 };
+      },
+      navZoomIn: () => {
+        if (_appState.fpv.on) return;
+        if (_appState.isScreen()) {
+          if (_appState.zoomedChrom == null) _appState.zoomToChromosome(_appState.firstBinOf("10"), { toggle: false });
+          return;
+        }
+        if (_appState.roomView == null) _appState.setRoomView(1);
+      },
+      navZoomOut: () => {
+        if (_appState.fpv.on) return;
+        _appState.zoomedChrom = null;
+        _appState.roomView = null;
+        _appState.animateCamera(_appState.fitViewState());
+        _appState.onStateChange?.();
+      },
+      navStep: (dir) => {
+        if (_appState.fpv.on) return;
+        if (_appState.isScreen()) {
+          const chroms = _appState.chromosomes();
+          const next = chroms[chroms.indexOf(_appState.zoomedChrom) + dir];
+          if (_appState.zoomedChrom != null && next != null) _appState.zoomToChromosome(_appState.firstBinOf(next), { toggle: false });
+          return;
+        }
+        const n = _appState.roomViews().length;
+        if (_appState.roomView != null) _appState.setRoomView(Math.min(n - 1, Math.max(0, _appState.roomView + dir)));
+      },
+      setRoomView: (index) => {
+        _appState.roomView = index;
+        _appState.animateCamera(_appState.roomViewState(index), 1200);
+        _appState.onStateChange?.();
       },
       // Ease the orbit camera from where it is to `to` (no geometry change). With the angles
       // unchanged, the two views differ by a pure scale about one fixed world point F (same pixel
@@ -806,7 +888,9 @@ export class GenomeRoomApp extends DemoApp {
       // eases from where it is to the end state's fit, on the same curve.
       animate: (step, end) => {
         cancelAnimationFrame(_appState._raf);
+        cancelAnimationFrame(_appState._camRaf);
         _appState.zoomedChrom = null;
+        _appState.roomView = null;
         const from = _appState.currentViewState();
         const to = _appState.fitViewState(_appState.geometry(end), end.assembly ?? _appState.assembly);
         const dOrbit = ((((to.rotationOrbit - from.rotationOrbit) % 360) + 540) % 360) - 180; // shortest way round

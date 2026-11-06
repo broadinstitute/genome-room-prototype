@@ -65,6 +65,20 @@ visualization palette (`colors.wallSurface` borders, `colors.band[1]` for the ac
 - **Simulate visitors** (header checkbox), with indented sub-controls: number of visitors 1–20;
   View: 3rd person / 1st person (1st person starts the simulation).
 
+**Navigation bar** (`mountNavBar`, centred under the area the camera fit used, `viewInset.bottom`
+reserves its height): [<] [−] [+] [>], "<" ">" only while zoomed in, hidden in first person.
+- Screen mode: + = chromosome 10 (`zoomToChromosome`, as clicking its label); < > = previous /
+  next chromosome (`zoomedChrom` is the focus); − = the full view.
+- Room mode: + = a close-up of the back-left corner; < > = neighbouring close-ups (`roomViews`:
+  the middle of each centerline segment — left wall, back-left corner, back wall, back-right
+  corner, right wall), each seen from inside at `roomViewRotationX` 16° tilt and
+  `roomViewOblique` 14° turn, framing ±`roomViewHalfWidth` 4.5 m of wall from the floor to
+  `roomViewAbove` 2.5 m above the band; − = the default view. Transitions use `animateCamera`.
+- The close-ups exposed a cutaway bug: the facing test compared against deck's
+  `cameraPosition`, which for an orthographic view sits next to the target — beyond the wall in
+  a close-up — so the wall read as back-facing. The shader now uses the view direction for
+  orthographic views (minus the depth row of `viewProjectionMatrix`; orthographic = zero w row).
+
 The header has `pointer-events: none` except on the control groups, so the canvas stays
 draggable. Its layout is measured into `viewInset` (`top` = below the text, `left` = right of the
 control column, `headerBottom`), kept in step by a `ResizeObserver`. `fitViewState` fits the content
