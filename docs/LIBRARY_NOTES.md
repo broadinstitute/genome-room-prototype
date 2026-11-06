@@ -29,7 +29,7 @@ prop, without recompiling the shader.
 | Bounded clipping | Correct. The clip test runs on pre-projection coordinates. |
 | Picking, tooltips, `dataHoverFunction` | Correct on curved surfaces. |
 | Scatter alignment | `?probe=scatter`: scatter dots sit centered in the polygon squares marking the same points, including on a curved corner. No `modelMatrix` is involved, so the matrix-order bug below does not arise. |
-| Backface cutaway | Done in the same extension: a varying carries the surface normal's facing, and `DECKGL_FILTER_COLOR` fades back-facing fragments. Works per fragment on curved surfaces. Facing is toward the camera position for perspective views but along the view direction for orthographic ones (deck's orthographic `cameraPosition` sits next to the target and can be behind a wall). |
+| Backface cutaway | Done in the same extension: a varying carries the surface normal's facing, and `DECKGL_FILTER_COLOR` fades back-facing fragments. Works per fragment on curved surfaces. Facing is toward the camera position for perspective views; for orthographic ones toward a fixed viewpoint 41 m from the room's centre along the view direction (deck's orthographic `cameraPosition` sits a zoom-dependent distance from the target, so fades drift with zoom and framing and can put the viewpoint behind a wall). |
 | Morphing | Assembly (flat strip → standing → bent) and shape changes (room ↔ rounded ↔ arc) at 60 fps (worst frame 18 ms), re-uploading uniforms every frame. |
 
 ### What needed workarounds

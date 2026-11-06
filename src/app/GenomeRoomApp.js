@@ -197,6 +197,9 @@ export class GenomeRoomApp extends DemoApp {
       camera: { roomRotationX: 30, flatRotationX: 90, roomRotationOrbit: -35, padding: 0.12 },
       animationMs: 1600,
       backfaceAlpha: 0.1, // surface seen from behind (dollhouse cutaway)
+      // Orthographic views judge facing from a viewpoint this far (m) from the room's floor centre
+      // toward the viewer: deck's camera distance at the zoom the cutaway was tuned at.
+      cutawayDistance: 41,
 
       colors: {
         text: [225, 230, 240],
@@ -368,7 +371,13 @@ export class GenomeRoomApp extends DemoApp {
       // Recompute the ribbon from assembly + shape, push it to the strip, rebuild the floor.
       update: () => {
         Object.assign(_appState, _appState.geometry());
-        applyRibbon(_appState.stripViz, ribbonUniforms(_appState.ribbon, _appState.backfaceAlpha));
+        applyRibbon(
+          _appState.stripViz,
+          ribbonUniforms(_appState.ribbon, _appState.backfaceAlpha, {
+            cutawayCenter: _appState.floorCenter,
+            cutawayDistance: _appState.cutawayDistance,
+          }),
+        );
         _appState.rebuildFloor();
       },
 

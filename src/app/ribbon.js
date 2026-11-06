@@ -113,13 +113,14 @@ export function ribbonPoint(state, s, t, z = 0) {
 }
 
 /** Uniform payload for the shader module. */
-export function ribbonUniforms(state, backfaceAlpha) {
+export function ribbonUniforms(state, backfaceAlpha, { cutawayCenter = [0, 0], cutawayDistance = 41 } = {}) {
   const u = {};
   state.segs.forEach((g, i) => {
     u[`seg${i}`] = [g.s0, g.x0, g.y0, g.h0];
   });
   u.curvA = [state.segs[0].k, state.segs[1].k, state.segs[2].k, state.segs[3].k];
   u.params = [state.segs[4].k, state.stand, state.axisY, backfaceAlpha];
+  u.view = [cutawayCenter[0], cutawayCenter[1], 0, cutawayDistance];
   return u;
 }
 
@@ -136,6 +137,7 @@ uniform ribbonUniforms {
   vec4 seg4;
   vec4 curvA;   // k0..k3
   vec4 params;  // k4, stand, axisY, backfaceAlpha
+  vec4 view;    // xyz: cutaway centre (room floor centre, world); w: cutaway viewpoint distance
 } ribbon;
 
 void ribbon_center(float s, out vec2 p, out float h) {
@@ -182,6 +184,7 @@ const RIBBON_MODULE = {
     seg4: "vec4<f32>",
     curvA: "vec4<f32>",
     params: "vec4<f32>",
+    view: "vec4<f32>",
   },
 };
 
@@ -198,15 +201,23 @@ const RIBBON_INJECT = {
     vec3 ribbon_mapped = ribbon_map(ribbon_world, ribbon_normal);
     vec4 ribbon_common = vec4((ribbon_mapped - project.coordinateOrigin) * project.commonUnitsPerWorldUnit, 1.0);
     position = project_common_position_to_clipspace(ribbon_common);
-    // Facing the camera? Perspective: toward the camera position. Orthographic (w row of the
-    // view-projection matrix is zero): toward the camera is minus the depth gradient (its z row).
-    // deck's cameraPosition for an orthographic view sits next to the target, which can lie
-    // beyond a wall (room close-ups), so it would read that wall as back-facing.
+    // Facing the viewpoint? Perspective (first person): deck's camera position. Orthographic
+    // (zero w row of the view-projection matrix): a fixed cutaway viewpoint, view.w metres from
+    // the room's floor centre toward the viewer (minus the depth row). Partial fades from a
+    // viewpoint that close show the room's shape. deck's own orthographic camera position sits
+    // a zoom-dependent distance from the target — which the framing moves off the room — so its
+    // fades drifted with zoom and framing, and in close-ups read the near wall as back-facing.
     mat4 ribbon_vp = project.viewProjectionMatrix;
     bool ribbon_ortho = abs(ribbon_vp[0][3]) + abs(ribbon_vp[1][3]) + abs(ribbon_vp[2][3]) < 1e-9;
-    vec3 ribbon_toCamera = ribbon_ortho
-      ? -vec3(ribbon_vp[0][2], ribbon_vp[1][2], ribbon_vp[2][2])
-      : project.cameraPosition - ribbon_common.xyz;
+    vec3 ribbon_toCamera;
+    if (ribbon_ortho) {
+      vec3 ribbon_towardViewer = normalize(-vec3(ribbon_vp[0][2], ribbon_vp[1][2], ribbon_vp[2][2]));
+      vec3 ribbon_eyeWorld = ribbon.view.xyz + ribbon_towardViewer * ribbon.view.w;
+      vec3 ribbon_eyeCommon = (ribbon_eyeWorld - project.coordinateOrigin) * project.commonUnitsPerWorldUnit;
+      ribbon_toCamera = ribbon_eyeCommon - ribbon_common.xyz;
+    } else {
+      ribbon_toCamera = project.cameraPosition - ribbon_common.xyz;
+    }
     ribbon_facing = dot(ribbon_normal, normalize(ribbon_toCamera));
   `,
   "fs:#decl": "in float ribbon_facing;",
