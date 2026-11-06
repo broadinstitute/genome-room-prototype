@@ -122,6 +122,8 @@ export class GenomeRoomApp extends DemoApp {
         stripHeight: null, // derived below: room.height − wallBaseHeight − wallTopMargin
         columnLabelSize: 0.3,
         columnLabelGap: 0.06, // band edge to the near edge of the chromosome labels
+        screenFrameBelow: 0.7, // Screen mode (bubbles) default view: from this far under the band
+        screenFrameAbove: 3.5, // to this far above it (bubble zone)
         chromZoomBelow: 0.7, // chromosome zoom frames from this far under the band (labels)
         chromZoomAbove: 2.0, // to this far above it (most of a bubble cluster; width usually governs)
         chromZoomPadding: 0.45, // zoom margin (log2) around the chromosome
@@ -191,7 +193,7 @@ export class GenomeRoomApp extends DemoApp {
       // Assembly: 0 = one flat strip, 1 = standing and bent into the current shape. The strip
       // stands up first, then bends; the phases overlap slightly.
       assemblySchedule: { stand: [0, 0.55], bend: [0.45, 1] },
-      camera: { roomRotationX: 30, flatRotationX: 90, roomRotationOrbit: -35, padding: 0.3 },
+      camera: { roomRotationX: 30, flatRotationX: 90, roomRotationOrbit: -35, padding: 0.12 },
       animationMs: 1600,
       backfaceAlpha: 0.1, // surface seen from behind (dollhouse cutaway)
 
@@ -611,17 +613,29 @@ export class GenomeRoomApp extends DemoApp {
       worldCorners: (geom = _appState, k = _appState.assembly) => {
         const r = geom.ribbon;
         const H = _appState.room.height;
+        // Height of the strip to frame. Assembled: the whole wall. Flat (Screen mode) in bubbles
+        // mode: only what is drawn there — the band, its labels below and the bubble zone above
+        // (the rest of the wall is empty). Interpolated with assembly k.
+        const { layout, display } = _appState;
+        const bubbles = display.mode === "bubbles" && _appState.stripPlotBottom != null;
+        const flatLow = bubbles ? _appState.stripPlotBottom - layout.screenFrameBelow : 0;
+        const flatHigh = bubbles ? _appState.stripPlotBottom + _appState.stripPlotHeight + layout.screenFrameAbove : H;
+        const tLow = lerp(flatLow, 0, k);
+        const tHigh = lerp(flatHigh, H, k);
         const pts = [];
         for (let s = 0; s <= r.length; s += 2) {
-          pts.push(ribbonPoint(r, s, 0).point, ribbonPoint(r, s, H).point);
+          pts.push(ribbonPoint(r, s, tLow).point, ribbonPoint(r, s, tHigh).point);
         }
         const L = r.length;
         const ax = _appState.room.width / 2;
         const D = _appState.room.depth;
-        const band = (_appState.layout.flatArcDepth / 2) * L;
+        // The flat arc diagram hangs under the strip: frame its band only when floor arcs are drawn.
+        const floorArcs = display.arcs === "floor" || display.arcs === "drop";
+        const band = floorArcs ? (layout.flatArcDepth / 2) * L : 0;
         const xs = geom.floorOutline.map((p) => p[0]);
         const ys = geom.floorOutline.map((p) => p[1]);
-        const flat = [[ax - L / 2, D - band], [ax + L / 2, D]];
+        // Flat, t maps to y = D + t, so the band hangs below the lowest framed t.
+        const flat = [[ax - L / 2, D + tLow - band], [ax + L / 2, D + tLow]];
         const room = [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]];
         for (const i of [0, 1]) {
           for (const j of [0, 1]) {
@@ -889,7 +903,11 @@ export class GenomeRoomApp extends DemoApp {
         _appState.zoomedChrom = null;
         _appState.roomView = null;
         const from = _appState.currentViewState();
-        const to = _appState.fitViewState(_appState.geometry(end), end.assembly ?? _appState.assembly);
+        const endGeometry = _appState.geometry(end);
+        const endK = end.assembly ?? _appState.assembly;
+        // End framing re-fitted each frame: switching mode resizes the header (and so the free
+        // area) a frame after the animation starts.
+        let to = _appState.fitViewState(endGeometry, endK);
         const dOrbit = ((((to.rotationOrbit - from.rotationOrbit) % 360) + 540) % 360) - 180; // shortest way round
         const t0 = performance.now();
         const frame = (now) => {
@@ -897,6 +915,7 @@ export class GenomeRoomApp extends DemoApp {
           const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
           step(e);
           _appState.update();
+          to = _appState.fitViewState(endGeometry, endK);
           if (!_appState.fpv.on) _appState.vizDeckManager.setViewState({
             ...to,
             target: [0, 1, 2].map((i) => lerp(from.target[i] ?? 0, to.target[i] ?? 0, e)),

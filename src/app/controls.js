@@ -357,7 +357,7 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
     .gr-note { align-self:center; color:${rgba(c.band[1], 1)}; transition:opacity .3s; } /* the lighter chromosome band */
     .gr-note.off { opacity:0; }
     .gr-room-only { transition:opacity .3s; }
-    .gr-room-only.off { opacity:.28; pointer-events:none; } /* Screen mode: room-only controls */
+    .gr-room-only.off { display:none; } /* Screen mode: room-only controls hidden, the header shortens */
     .gr-header input[type=range] { accent-color:${rgba(c.band[1], 1)}; }
     .gr-header input[type=checkbox] { accent-color:${rgba(c.band[1], 1)}; margin:0; }`;
   document.head.appendChild(css);

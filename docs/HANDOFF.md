@@ -48,8 +48,9 @@ visualization palette (`colors.wallSurface` borders, `colors.band[1]` for the ac
   simulation (`simPausedByScreen`), Room restarts it. In Screen mode a note beside
   the toggle reads "Screen mode allows direct interaction with the visualization using your mouse."
   (`.gr-note`, faded out in Room mode and left out of the `viewInset.left` measurement). Screen stops the simulation
-  (and first person; the camera glides out of first person before the room unfolds), and fades
-  the room-only groups (Room shape, Simulate visitors: class `gr-room-only`, no pointer events).
+  (and first person; the camera glides out of first person before the room unfolds), and hides
+  the room-only groups (Room shape, Simulate visitors: class `gr-room-only`), so the header
+  shortens and the view gets the height.
   In Screen mode, clicking a chromosome label (`columnAxisLabelLayerClickFn` override) animates
   the camera to that chromosome (`zoomToChromosome` → `fitPoints` on its span, from
   `chromZoomBelow` 0.7 m under the band to `chromZoomAbove` 2 m above, margin `chromZoomPadding`
@@ -189,6 +190,12 @@ Working:
 - `animate(step, end)`: fits the camera once to `geometry(end)`, then each frame calls `step(e)`,
   `update()`, and sets a view state interpolated from the starting view (including any manual
   orbit) to that fit. Easing is quadratic in-out over `animationMs` (1600).
+- **Framing box** (`worldCorners`): the assembled room frames the whole wall. Flat (Screen mode)
+  in bubbles mode frames only what is drawn — from `screenFrameBelow` 0.7 m under the band to
+  `screenFrameAbove` 3.5 m above it — and the flat arc diagram's band under the strip only when
+  floor arcs are drawn; trait-tracks mode still frames the full strip. Zoom margin
+  `camera.padding` 0.12. Animations re-fit their end state every frame, since a mode switch
+  resizes the header a frame after it starts.
 - **Camera fit** (`fitViewState`): our own, not viz_sandbox's `expandTargetViewStateToWorldPoints`
   (which measures the whole window and steps zoom in 0.05 increments). It projects the corner
   points at zoom 0, scales zoom so their screen box fits the free area in `viewInset` (less the
