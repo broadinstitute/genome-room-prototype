@@ -97,6 +97,14 @@ export function makeStripViz(containerId, deckManager, bins, traits, layout, _ap
   );
 
   viz.heatmapDataAccessor = (d) => d.value;
+  // No click selection, and labels never resize: by default a cell click selects its row and the
+  // column labels of selected/highlighted columns grow 2.5× (hover highlights too).
+  viz.appState.enableCellClickSelectsRow = false;
+  viz.appState.resizeLabelsOnSelection = false;
+  // Chromosome label click: zoom the camera to that chromosome (Screen mode); again to zoom out.
+  viz.columnAxisLabelLayerClickFn = (info) => {
+    if (info?.object) _appState.zoomToChromosome(info.object.index);
+  };
   viz.getHeatMapFillColor = (d) => _appState.cellColor(d);
   viz.appState.columnAxisLabelTextAngle = 0;
   if (layout.bubbles && layout.bubbleSide === "above") {

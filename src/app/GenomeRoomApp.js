@@ -122,6 +122,8 @@ export class GenomeRoomApp extends DemoApp {
         stripHeight: null, // derived below: room.height − wallBaseHeight − wallTopMargin
         columnLabelSize: 0.3,
         columnLabelGap: 0.06, // band edge to the near edge of the chromosome labels
+        chromZoomBelow: 0.7, // chromosome zoom frames from this far under the band (labels)
+        chromZoomAbove: 2.0, // to this far above it (most of a bubble cluster; width usually governs)
         rowLabelMargin: 3.2, // start of the strip, reserved for trait row labels (set to stripSideMargin without them)
         stripSideMargin: 1.6, // trait rows hidden (no row labels): this much padding at both ends
         stripEndMargin: 0, // derived: padding after the last bin
@@ -631,12 +633,15 @@ export class GenomeRoomApp extends DemoApp {
       // move the target so the box is centred in that area. Exact, so animations can fit each end
       // once and interpolate.
       fitViewState: (geom = _appState, k = _appState.assembly, { padding = _appState.camera.padding } = {}) => {
-        const corners = _appState.worldCorners(geom, k);
+        const { flatRotationX, roomRotationX, roomRotationOrbit } = _appState.camera;
+        const angles = { rotationX: lerp(flatRotationX, roomRotationX, k), rotationOrbit: roomRotationOrbit * k };
+        return _appState.fitPoints(_appState.worldCorners(geom, k), angles, { padding });
+      },
+      // Orbit view state at `angles` framing world points `corners` in the free area (see above).
+      fitPoints: (corners, angles, { padding = _appState.camera.padding } = {}) => {
         const xs = corners.map((c) => c[0]);
         const ys = corners.map((c) => c[1]);
         const center = [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2, 0];
-        const { flatRotationX, roomRotationX, roomRotationOrbit } = _appState.camera;
-        const angles = { rotationX: lerp(flatRotationX, roomRotationX, k), rotationOrbit: roomRotationOrbit * k };
         const deck = _appState.vizDeckManager?.deck;
         const W = deck?.width || window.innerWidth;
         const H = deck?.height || window.innerHeight;
@@ -679,9 +684,60 @@ export class GenomeRoomApp extends DemoApp {
       },
       fitCamera: (options) => {
         if (_appState.fpv.on) return null; // the first-person view owns the camera
+        _appState.zoomedChrom = null;
         const fitted = _appState.fitViewState(_appState, _appState.assembly, options);
         _appState.vizDeckManager.setViewState(fitted);
         return fitted;
+      },
+      // ---- chromosome zoom (Screen mode) ----------------------------------------------------
+      // Clicking a chromosome label frames that chromosome: its span along the strip, from just
+      // under the band (labels) to the bubble zone above it. Clicking it again zooms back out.
+      zoomedChrom: null,
+      zoomToChromosome: (binIndex) => {
+        if ((_appState.assemblyTarget ?? _appState.assembly) >= 0.5 || _appState.fpv.on || !_appState.ribbon) return;
+        const chrom = _appState.bins[binIndex]?.chrom;
+        if (chrom == null) return;
+        if (_appState.zoomedChrom === chrom) {
+          const out = _appState.fitViewState();
+          _appState.animateCamera(out);
+          _appState.zoomedChrom = null;
+          return;
+        }
+        const inChrom = _appState.bins.filter((b) => b.chrom === chrom);
+        const half = _appState.barWidth / 2;
+        const s0 = _appState.binS(inChrom[0].index) - half;
+        const s1 = _appState.binS(inChrom[inChrom.length - 1].index) + half;
+        const { chromZoomBelow, chromZoomAbove } = _appState.layout;
+        const t0 = _appState.stripPlotBottom - chromZoomBelow;
+        const t1 = _appState.stripPlotBottom + _appState.stripPlotHeight + chromZoomAbove;
+        const points = [];
+        for (const sv of [s0, s1]) for (const tv of [t0, t1]) points.push(ribbonPoint(_appState.ribbon, sv, tv).point);
+        const { flatRotationX } = _appState.camera;
+        const to = _appState.fitPoints(points, { rotationX: flatRotationX, rotationOrbit: 0 }, { padding: 0.15 });
+        _appState.animateCamera(to);
+        _appState.zoomedChrom = chrom;
+      },
+      // Ease the orbit camera from where it is to `to` (no geometry change).
+      animateCamera: (to, ms = 900) => {
+        cancelAnimationFrame(_appState._camRaf);
+        const from = _appState.currentViewState();
+        const dOrbit = ((((to.rotationOrbit - from.rotationOrbit) % 360) + 540) % 360) - 180;
+        const t0 = performance.now();
+        const frame = (now) => {
+          const k = Math.min(1, (now - t0) / ms);
+          const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+          if (!_appState.fpv.on) {
+            _appState.vizDeckManager.setViewState({
+              ...to,
+              target: [0, 1, 2].map((i) => lerp(from.target[i] ?? 0, to.target[i] ?? 0, e)),
+              zoom: lerp(from.zoom, to.zoom, e),
+              rotationX: lerp(from.rotationX, to.rotationX, e),
+              rotationOrbit: from.rotationOrbit + dOrbit * e,
+            });
+          }
+          if (k < 1) _appState._camRaf = requestAnimationFrame(frame);
+        };
+        _appState._camRaf = requestAnimationFrame(frame);
       },
       // Compass bearing the camera looks along (deg clockwise from +y): an orbit view's
       // rotationOrbit is exactly that; a first-person view has `bearing`.
@@ -726,6 +782,7 @@ export class GenomeRoomApp extends DemoApp {
       // eases from where it is to the end state's fit, on the same curve.
       animate: (step, end) => {
         cancelAnimationFrame(_appState._raf);
+        _appState.zoomedChrom = null;
         const from = _appState.currentViewState();
         const to = _appState.fitViewState(_appState.geometry(end), end.assembly ?? _appState.assembly);
         const dOrbit = ((((to.rotationOrbit - from.rotationOrbit) % 360) + 540) % 360) - 180; // shortest way round

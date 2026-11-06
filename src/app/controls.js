@@ -351,6 +351,8 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
       border-radius:4px; padding:5px 12px; font:13px Helvetica,Arial,sans-serif; cursor:pointer; }
     .gr-btn:hover { color:${rgba(c.text, 1)}; background:${rgba(accent, 0.1)}; }
     .gr-btn.on { background:${rgba(c.band[1], 0.45)}; color:${rgba(c.text, 1)}; }
+    .gr-room-only { transition:opacity .3s; }
+    .gr-room-only.off { opacity:.28; pointer-events:none; } /* Screen mode: room-only controls */
     .gr-header input[type=range] { accent-color:${rgba(c.band[1], 1)}; }
     .gr-header input[type=checkbox] { accent-color:${rgba(c.band[1], 1)}; margin:0; }`;
   document.head.appendChild(css);
@@ -375,7 +377,7 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
         <div class="gr-head">Mode</div>
         <div class="gr-seg"><button data-main-mode="room">Room</button><button data-main-mode="screen">Screen</button></div>
       </div>
-      <div class="gr-group">
+      <div class="gr-group gr-room-only">
         <div class="gr-head">Room shape</div>
         <div class="gr-seg">${shapes.map((s) => `<button data-main-shape="${s}">${_appState.profiles[s].label}</button>`).join("")}</div>
       </div>
@@ -386,7 +388,7 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
           <div data-main="densityValue" style="opacity:.6"></div>
         </div>
       </div>
-      <div class="gr-group gr-col">
+      <div class="gr-group gr-col gr-room-only">
         <label class="gr-head"><input data-main="sim" type="checkbox" /> Simulate visitors</label>
         <div class="gr-sub">
           <div class="gr-row">Number of visitors:
@@ -490,6 +492,7 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
     // Target of a running assembly animation if any, else where it is.
     const assembled = (_appState.assemblyTarget ?? _appState.assembly) >= 0.5;
     for (const b of modeButtons) b.classList.toggle("on", (b.dataset.mainMode === "room") === assembled);
+    for (const g of header.querySelectorAll(".gr-room-only")) g.classList.toggle("off", !assembled);
     for (const b of shapeButtons) b.classList.toggle("on", b.dataset.mainShape === _appState.shapeName);
     q('[data-main="sim"]').checked = _appState.sim.on;
     q('[data-main="visitors"]').value = _appState.sim.count;

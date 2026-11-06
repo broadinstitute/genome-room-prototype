@@ -45,7 +45,14 @@ walls and floor, lidar tracking, linger to open traits, shared traits connect pe
 row per control group (label column, controls to its right), as segmented toggles styled from the
 visualization palette (`colors.wallSurface` borders, `colors.band[1]` for the active segment):
 - **Mode**: Room / Screen = `animateAssembly(1 / 0)`, `?view=flat`. Screen stops the simulation
-  (and first person; the camera glides out of first person before the room unfolds).
+  (and first person; the camera glides out of first person before the room unfolds), and fades
+  the room-only groups (Room shape, Simulate visitors: class `gr-room-only`, no pointer events).
+  In Screen mode, clicking a chromosome label (`columnAxisLabelLayerClickFn` override) animates
+  the camera to that chromosome (`zoomToChromosome` → `fitPoints` on its span, from
+  `chromZoomBelow` 0.7 m under the band to `chromZoomAbove` 2 m above, `animateCamera`); clicking
+  it again zooms back out. Heatmap click selection and selection label resizing are off
+  (`enableCellClickSelectsRow`, `resizeLabelsOnSelection`): a cell click used to select the band
+  row and grow every chromosome label 2.5×.
 - **Room shape**: Square / Rounded / Arc (the `room` profile's label is "Square"; `?shape=room`).
 - **Trait density**: Low / Medium / High = the 1, 2 or 3 rarest tiers via `setTiers` ("Custom" if
   the Debug legend leaves a gap).
