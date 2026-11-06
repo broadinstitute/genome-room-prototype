@@ -330,6 +330,9 @@ wander biased toward hint ticks; toggle + count + speed.
     are a `PathLayer` (not billboarded, widths in world units, so the ribbon map applies — the
     width offset is added before `DECKGL_FILTER_GL_POSITION`), rebuilt each animation frame:
     ~4,500 paths with all tiers and five clusters kept frames at 17 ms (p95), 34 ms worst.
+  - Arc resolution (`arcSegments`): Room mode 0.5 m faint-arc pieces (≤ 40) and 0.2 m shared-link
+    pieces; Screen mode, viewed up close via the chromosome zoom, 0.12 m (≤ 160) and 0.08 m. Arcs
+    are only rebuilt while clusters animate, and `animateAssembly` redraws them on a mode switch.
 - **Floor**: each visitor is a gender-neutral restroom-style pictogram (inline SVG, `IconLayer`
   mask, billboarded, 1.7 m tall in world units, feet at the position, min 12 px). Simulated
   visitors are grey until dwelling, white while their cluster is open; a ring on the floor round

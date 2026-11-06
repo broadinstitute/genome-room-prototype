@@ -370,6 +370,7 @@ function runBubbleLoop(_appState) {
     // has ~550, rebuilt every animation frame.
     const faint = [];
     if (_appState.display.bubbleLinks === "arcs") {
+      const seg = arcSegments(_appState);
       for (const q of placed) {
         const a = clamp01((q.p - 0.5) / 0.5);
         if (a <= 0) continue;
@@ -379,7 +380,7 @@ function runBubbleLoop(_appState) {
           const A = tickEnd(q, bin, layout.linkTickLength, layout);
           const B = bandEnd(_appState, bin, q.c.bracket.edge);
           const span = Math.hypot(B.p[0] - A.p[0], B.p[1] - A.p[1]);
-          faint.push({ color, path: cubicPoints(A, B, 1, Math.min(40, Math.max(8, Math.ceil((span * 1.4) / 0.5))), _appState) });
+          faint.push({ color, path: cubicPoints(A, B, 1, Math.min(seg.faintMax, Math.max(8, Math.ceil((span * 1.4) / seg.faint))), _appState) });
         }
       }
     }
@@ -403,6 +404,16 @@ function runBubbleLoop(_appState) {
     _appState._bubbleRaf = active ? requestAnimationFrame(frame) : null;
   };
   _appState._bubbleRaf = requestAnimationFrame(frame);
+}
+
+/**
+ * Arc piece lengths (m) along the curve. Screen mode is viewed up close (chromosome zoom), so its
+ * arcs use much shorter pieces; arcs are rebuilt only while clusters animate, and Screen mode has
+ * a single (mouse) cluster, so the extra points are affordable there.
+ */
+function arcSegments(_appState) {
+  const screen = (_appState.assemblyTarget ?? _appState.assembly) < 0.5;
+  return screen ? { faint: 0.12, faintMax: 160, shared: 0.08 } : { faint: 0.5, faintMax: 40, shared: 0.2 };
 }
 
 /** End of a link at the tip of bubble q's tick toward `otherBin` (or its far side if none). */
@@ -478,7 +489,7 @@ function sharedLinkQuads(quads, a, b, f, _appState) {
     alpha = Math.round(layout.faintArcAlpha + (220 - layout.faintArcAlpha) * f);
   }
   const span = Math.hypot(B.p[0] - A.p[0], B.p[1] - A.p[1]);
-  const pts = cubicPoints(A, B, draw, Math.max(16, Math.ceil((span * 1.4) / 0.2)), _appState);
+  const pts = cubicPoints(A, B, draw, Math.max(16, Math.ceil((span * 1.4) / arcSegments(_appState).shared)), _appState);
   const w = layout.sharedLinkWidth / 2;
   const color = [...a.b.color, alpha];
   const side = pts.map((p, i) => {

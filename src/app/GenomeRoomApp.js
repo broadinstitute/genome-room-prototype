@@ -831,6 +831,7 @@ export class GenomeRoomApp extends DemoApp {
       animateAssembly: (to) => {
         const from = _appState.assembly;
         _appState.assemblyTarget = to; // so controls show where it is going
+        if (_appState.display.mode === "bubbles") redrawBubbles(_appState); // arc resolution follows the mode
         _appState.animate(
           (e) => {
             _appState.assembly = lerp(from, to, e);
