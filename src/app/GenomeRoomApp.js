@@ -197,9 +197,6 @@ export class GenomeRoomApp extends DemoApp {
       camera: { roomRotationX: 30, flatRotationX: 90, roomRotationOrbit: -35, padding: 0.12 },
       animationMs: 1600,
       backfaceAlpha: 0.1, // surface seen from behind (dollhouse cutaway)
-      // Orthographic views judge facing from a viewpoint this far (m) from the room's floor centre
-      // toward the viewer: deck's camera distance at the zoom the cutaway was tuned at.
-      cutawayDistance: 41,
 
       colors: {
         text: [225, 230, 240],
@@ -373,10 +370,7 @@ export class GenomeRoomApp extends DemoApp {
         Object.assign(_appState, _appState.geometry());
         applyRibbon(
           _appState.stripViz,
-          ribbonUniforms(_appState.ribbon, _appState.backfaceAlpha, {
-            cutawayCenter: _appState.floorCenter,
-            cutawayDistance: _appState.cutawayDistance,
-          }),
+          ribbonUniforms(_appState.ribbon, _appState.backfaceAlpha, { facingByDirection: _appState.roomView != null }),
         );
         _appState.rebuildFloor();
       },
@@ -802,7 +796,9 @@ export class GenomeRoomApp extends DemoApp {
       navZoomOut: () => {
         if (_appState.fpv.on) return;
         _appState.zoomedChrom = null;
+        const wasRoomView = _appState.roomView != null;
         _appState.roomView = null;
+        if (wasRoomView) _appState.update(); // back to the original cutaway
         _appState.animateCamera(_appState.fitViewState());
         _appState.onStateChange?.();
       },
@@ -819,6 +815,7 @@ export class GenomeRoomApp extends DemoApp {
       },
       setRoomView: (index) => {
         _appState.roomView = index;
+        _appState.update(); // close-up cutaway (facing by view direction)
         _appState.animateCamera(_appState.roomViewState(index), 1200);
         _appState.onStateChange?.();
       },

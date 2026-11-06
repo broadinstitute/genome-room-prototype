@@ -78,15 +78,12 @@ their space); hidden in first person.
   corner, right wall), each seen from inside at `roomViewRotationX` 16° tilt and
   `roomViewOblique` 14° turn, framing ±`roomViewHalfWidth` 4.5 m of wall from the floor to
   `roomViewAbove` 2.5 m above the band with margin `roomViewPadding` 0.45; − = the default view. Transitions use `animateCamera`.
-- Cutaway viewpoint: for orthographic views the facing test uses a fixed point `cutawayDistance`
-  41 m from the room's floor centre toward the viewer (direction = minus the depth row of
-  `viewProjectionMatrix`; orthographic = zero w row), passed as the `view` uniform. That was
-  deck's camera distance when the cutaway was tuned; the partial fades from a viewpoint that
-  close show the room's shape. deck's own orthographic `cameraPosition` sits a zoom-dependent
-  distance from the target, which the framing moves off the room, so its fades drifted with zoom
-  and framing, and in close-ups (target beyond the wall) read the wall as back-facing. A
-  view-direction test fixed the close-ups but flattened the zoomed-out room (uniform fades per
-  wall), so it was dropped. First person (perspective) keeps deck's camera position.
+- Cutaway: facing is judged against deck's `cameraPosition`, as originally — keep it; the user
+  prefers its zoomed-out look (a view-direction test and a fixed 41 m viewpoint were both tried
+  and both read the room's shape worse). Only during a Room close-up (`roomView` set → the
+  `view.x` uniform flag, via `update()`) does an orthographic view use the view direction (minus
+  the depth row of `viewProjectionMatrix`; orthographic = zero w row): there deck's
+  `cameraPosition` sits beyond the viewed wall, which would read as back-facing.
 
 The header has `pointer-events: none` except on the control groups, so the canvas stays
 draggable. Its layout is measured into `viewInset` (`top` = below the text, `left` = right of the
