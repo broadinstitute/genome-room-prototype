@@ -67,7 +67,7 @@ visualization palette (`colors.wallSurface` borders, `colors.band[1]` for the ac
   View: 3rd person / 1st person (1st person starts the simulation).
 
 **Navigation bar** (`mountNavBar`): centred in the window, a sixth of the window height above the
-bottom; `viewInset.bottom` reserves everything below its top edge. [<] [−] [+] [>] as inline SVG
+bottom, over the visualization (the camera framing does not reserve space for it). [<] [−] [+] [>] as inline SVG
 glyphs (round-capped strokes); "<" ">" only while zoomed in; hidden in first person.
 - Screen mode: + = chromosome 10 (`zoomToChromosome`, as clicking its label); < > = previous /
   next chromosome (`zoomedChrom` is the focus); − = the full view.
@@ -189,8 +189,6 @@ Working:
 - `animate(step, end)`: fits the camera once to `geometry(end)`, then each frame calls `step(e)`,
   `update()`, and sets a view state interpolated from the starting view (including any manual
   orbit) to that fit. Easing is quadratic in-out over `animationMs` (1600).
-- The camera framing includes the flat arc diagram's band under the strip only when floor arcs
-  are drawn (`arcs` floor or drop); bubbles mode leaves it out, so the flat strip fits full width.
 - **Camera fit** (`fitViewState`): our own, not viz_sandbox's `expandTargetViewStateToWorldPoints`
   (which measures the whole window and steps zoom in 0.05 increments). It projects the corner
   points at zoom 0, scales zoom so their screen box fits the free area in `viewInset` (less the

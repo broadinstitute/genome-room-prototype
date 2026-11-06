@@ -420,12 +420,10 @@ function mountMainPanel(root, _appState, refreshers, setParam) {
     const groups = [...header.querySelectorAll(".gr-group")].flatMap((g) =>
       [...g.children].filter((el) => !el.classList.contains("gr-note")).map((el) => el.getBoundingClientRect()),
     );
-    const nav = document.querySelector(".gr-nav");
     _appState.viewInset = {
       top: text.bottom + 12,
       left: Math.max(...groups.map((r) => r.right)) + 24,
       headerBottom: header.offsetHeight,
-      bottom: (nav ? window.innerHeight - nav.getBoundingClientRect().top : 0) + 16, // the navigation bar
     };
     requestAnimationFrame(() => _appState.fitCamera());
   };

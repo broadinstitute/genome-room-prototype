@@ -618,9 +618,7 @@ export class GenomeRoomApp extends DemoApp {
         const L = r.length;
         const ax = _appState.room.width / 2;
         const D = _appState.room.depth;
-        // The flat arc diagram hangs under the strip; frame its band only when floor arcs are drawn.
-        const floorArcs = _appState.display.arcs === "floor" || _appState.display.arcs === "drop";
-        const band = floorArcs ? (_appState.layout.flatArcDepth / 2) * L : 0;
+        const band = (_appState.layout.flatArcDepth / 2) * L;
         const xs = geom.floorOutline.map((p) => p[0]);
         const ys = geom.floorOutline.map((p) => p[1]);
         const flat = [[ax - L / 2, D - band], [ax + L / 2, D]];
@@ -670,11 +668,8 @@ export class GenomeRoomApp extends DemoApp {
           { left: inset?.left ?? 0, top: inset?.top ?? 0 },
           { left: 0, top: inset?.headerBottom ?? 0 },
         ].map((a) => ({ left: Math.min(W * 0.6, a.left), top: Math.min(H * 0.6, a.top) }));
-        const bottom = Math.min(H * 0.3, inset?.bottom ?? 0); // the navigation bar
-        const fitScale = (a) => Math.min((W - a.left) / (bx[1] - bx[0] || 1), (H - a.top - bottom) / (by[1] - by[0] || 1));
+        const fitScale = (a) => Math.min((W - a.left) / (bx[1] - bx[0] || 1), (H - a.top) / (by[1] - by[0] || 1));
         const { left, top } = fitScale(areas[0]) >= fitScale(areas[1]) ? areas[0] : areas[1];
-        _appState.fitArea = { left, top, bottom, width: W }; // the navigation bar centres under it
-        _appState.onFitArea?.();
         const scale = fitScale({ left, top });
         const zoom = Math.log2(scale) - padding;
         const s = Math.pow(2, zoom);
@@ -682,7 +677,7 @@ export class GenomeRoomApp extends DemoApp {
         const cx = W / 2 + ((bx[0] + bx[1]) / 2 - W / 2) * s;
         const cy = H / 2 + ((by[0] + by[1]) / 2 - H / 2) * s;
         const dx = left + (W - left) / 2 - cx;
-        const dy = top + (H - top - bottom) / 2 - cy;
+        const dy = top + (H - top) / 2 - cy;
         // New target: the floor point (z = 0) on the line of sight through the pixel that must
         // become the screen centre. OrbitViewport.unproject ignores targetZ and returns a point
         // at the target's depth, so slide it along the view direction (cos rx·sin ro,
